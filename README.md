@@ -31,17 +31,20 @@ hardware. This is early development, with substantial work remaining.
    dependencies, build instructions, licenses, and honest results so others can
    fork, build, investigate, and contribute.
 
-## First development candidate: 0.5.54rc
+## Development candidate: 0.56rc
 
-This repository contains the current working source and patch set. **0.5.54rc is a
+This repository contains the current working source and patch set. **0.56rc is a
 development release candidate, not a stable compatibility release.** Its PS5
-content version is `00.005.054` and its application title is **DirkuLator**
+content version is `00.005.056` and its application title is **DirkuLator**
 (`PPSA99862`). The `rc` designation belongs to the release tag and archive name;
 the console requires a numeric content version.
 
-The native build, package checks, and component sanitizer regressions passed.
-See [BUILD-NOTES.md](BUILD-NOTES.md) and [VALIDATION.json](VALIDATION.json) for
-exact coverage and limits. This candidate has not been tested on a physical PS5.
+The candidate adds startup-only compiler affinity, more elastic allocation
+retention, and driver source/archive/binary checks after a stale memory-patch
+receipt was found in 0.5.55rc. See [BUILD-NOTES.md](BUILD-NOTES.md) for scope and
+validation status. The previous [VALIDATION.json](VALIDATION.json) describes
+0.5.54rc until the new qualification receipt is written. No hardware improvement
+or fog/mesh correction is claimed before testing.
 
 ## Scope
 

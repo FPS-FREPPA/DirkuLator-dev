@@ -108,6 +108,10 @@ if [[ -f $radv_release/lib/libvulkan_radeon.ps5.a ]]; then
         rm -f build/radv-isolated/libvulkan_radeon.ps5.a
     fi
 fi
+if [[ -f build/radv-isolated/libvulkan_radeon.ps5.a ]] && ! python3 -B tools/isolate-radv.py --check; then
+    step "RADV: isolated archive no longer matches its input and output hashes"
+    mv build/radv-isolated/libvulkan_radeon.ps5.a "build/radv-isolated/libvulkan_radeon.ps5.a.before-$(date -u +%Y%m%dT%H%M%S)"
+fi
 if [[ ! -f build/radv-isolated/libvulkan_radeon.ps5.a ]]; then
     if [[ ! -f $radv_release/lib/libvulkan_radeon.ps5.a ]]; then
         step "RADV (Mesa) for the PS5 - this takes a while"

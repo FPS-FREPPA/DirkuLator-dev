@@ -10,6 +10,7 @@ import hashlib
 import json
 import re
 import subprocess
+import sys
 
 root = Path(__file__).resolve().parents[1]
 source = root.parent/'mihawk-vulkan-review/.deps/native/radv-release/lib/libvulkan_radeon.ps5.a'
@@ -27,6 +28,14 @@ def symbols(path, defined=False):
 def digest(path):
     with path.open('rb') as f:
         return hashlib.file_digest(f, 'sha256').hexdigest()
+
+if sys.argv[1:] == ['--check']:
+    try:
+        receipt = json.loads((output/'manifest.json').read_text())
+        valid = receipt['source_sha256'] == digest(source) and receipt['isolated_sha256'] == digest(output/source.name)
+    except (OSError, KeyError, ValueError):
+        valid = False
+    raise SystemExit(0 if valid else 1)
 
 defined = sorted(symbols(source, True))
 demangled = subprocess.run(['c++filt'], input='\n'.join(defined)+'\n',

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 #include "profiling_session.h"
+#include "startup_shader_affinity.h"
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -16,6 +17,16 @@ namespace Eden::Performance {
 void RegisterWorker(const char* name);
 // Development: keep other named threads off guest cores 0-2 and their SMT siblings.
 void SetSecondaryPlacement(bool enabled);
+struct ShaderAffinityOps {
+    std::uint64_t Allowed() const;
+    bool Read(std::uint64_t& mask) const;
+    bool Apply(std::uint64_t mask) const;
+};
+class StartupShaderAffinity {
+    ShaderAffinityOps ops;
+    StartupShader::AffinityScope<ShaderAffinityOps> scope{ops};
+};
+unsigned StartupShaderWorkerCount(unsigned fallback);
 void PlatformChecks();
 // Main thread only, between GPU readiness and guest shutdown.
 void Snapshot();

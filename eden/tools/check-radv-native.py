@@ -29,6 +29,10 @@ link = (build/'bin/eden-headless.map').read_text()
 assert 'heap_wrap' not in link, 'A second SDK heap wrapper owner was linked'
 assert 'libps5vk.a' not in link and 'libpsbc.a' not in link, 'Old Vulkan implementation linked'
 assert 'libvulkan_radeon.ps5.a' in link and 'libps5_opengl_core33.a' in link
+binary = (build/'bin/eden-headless').read_bytes()
+assert b'MiB in %u pieces (no single free range)' in binary, 'Fragmented RADV backing is absent from the linked binary'
+assert any('radv_ps5_memory_alloc_chunked' in name for name in symbols), 'Missing compiled fragmented allocator'
+subprocess.run(['python3', '-B', str(root/'tools/isolate-radv.py'), '--check'], check=True)
 sdk = root.parent/'mihawk-vulkan-review/.deps/native/ps5-payload-sdk'
 for name in ('libc++.a', 'libc++abi.a', 'libunwind.a'):
     subprocess.run(['cmp', str(cache/'sdk/target/lib'/name), str(sdk/'target/lib'/name)], check=True)

@@ -14,6 +14,7 @@ execute_process(COMMAND python3 "${PORT_ROOT}/tools/prepare-vulkan-port.py"
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${PORT_ROOT}/tools/prepare-vulkan-port.py"
     "${PORT_ROOT}/tools/prepare-native-shader-policy.py"
+    "${PORT_ROOT}/tools/prepare-startup-shaders.py"
     "${EDEN_PORT_DIR}/vulkan_hud.vert" "${EDEN_PORT_DIR}/vulkan_hud.frag"
     "${EDEN_PORT_DIR}/vulkan_hud_prepare.inc" "${EDEN_PORT_DIR}/vulkan_hud_draw.inc"
     "${EDEN_PORT_DIR}/vulkan_loading.inc" "${EDEN_PORT_DIR}/vulkan_mihawkgen.inc")

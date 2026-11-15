@@ -92,6 +92,13 @@ int main() {
     const Released low = TrimIdle(caches, idle, IdleAllowance(125 * MiB));
     assert(IdleBytes(caches) <= 64 * MiB && low.bytes > 0);
     assert(Has(caches, busy) && Has(caches, deferred));
+    // Critical fragmentation or total headroom releases every completed idle buffer.
+    static_assert(IdleAllowance(32 * MiB, 256 * MiB) == 64 * MiB);
+    static_assert(IdleAllowance(32 * MiB - 1, 256 * MiB) == 0);
+    static_assert(IdleAllowance(512 * MiB, 256 * MiB - 1) == 0);
+    const Released critical = TrimIdle(caches, idle, IdleAllowance(31 * MiB, 260 * MiB));
+    assert(critical.bytes > 0 && IdleBytes(caches) == 0);
+    assert(Has(caches, busy) && Has(caches, deferred));
     std::printf("PASS: idle staging trim: 608 MiB idle -> %llu MiB (cap 256, largest first), then <= 64 MiB when the largest free block < 512 MiB; busy/deferred kept\n",
                 static_cast<unsigned long long>((608 * MiB - capped.bytes) / MiB));
 }
@@ -125,7 +132,7 @@ with tempfile.TemporaryDirectory(prefix='eden-staging-trim-') as temp:
     tick = re.search(r'void StagingBufferPool::TickFrame\(\) \{.*?\n\}\n', pool, re.S)
     assert tick, 'No TickFrame in the generated pool'
     body = tick.group(0)
-    for needed in ('ReleaseCache(MemoryUsage::Download);', 'TrimIdle(', 'IdleAllowance(largest)',
+    for needed in ('ReleaseCache(MemoryUsage::Download);', 'TrimIdle(', 'IdleAllowance(largest, pool_free)',
                    'eden_direct_memory_free(&pool_free, &largest)', '&device_local_cache, &upload_cache, &download_cache',
                    '!entry.deferred && scheduler.IsFree(entry.tick)'):
         assert needed in body, 'Generated TickFrame lacks: ' + needed

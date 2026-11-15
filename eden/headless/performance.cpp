@@ -431,6 +431,50 @@ void SetSecondaryPlacement(bool enabled) {
 #endif
 }
 
+std::uint64_t ShaderAffinityOps::Allowed() const {
+#ifdef PS5_NATIVE
+    if (!worker_topology_ready || !topology_allowed_valid) return 0;
+    std::uint64_t mask = 0;
+    for (unsigned cpu = 0; cpu < 64; ++cpu)
+        if (CPU_ISSET(cpu, &topology_allowed)) mask |= 1ULL << cpu;
+    return mask;
+#else
+    return 0;
+#endif
+}
+bool ShaderAffinityOps::Read(std::uint64_t& mask) const {
+#ifdef PS5_NATIVE
+    cpuset_t current{};
+    if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, 8, &current)) return false;
+    mask = 0;
+    for (unsigned cpu = 0; cpu < 64; ++cpu)
+        if (CPU_ISSET(cpu, &current)) mask |= 1ULL << cpu;
+    return true;
+#else
+    return false;
+#endif
+}
+bool ShaderAffinityOps::Apply(std::uint64_t mask) const {
+#ifdef PS5_NATIVE
+    cpuset_t target{}, current{};
+    if (!mask || cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, 8, &current)) return false;
+    for (unsigned cpu = 0; cpu < 64; ++cpu)
+        if (mask & (1ULL << cpu)) CPU_SET(cpu, &target);
+    const bool applied = ApplyAffinity(target, current);
+    static std::atomic<bool> reported{false};
+    if (applied && mask == Allowed() && !reported.exchange(true))
+        std::printf("EDEN_SHADER_STARTUP_AFFINITY mask=%llx slots=%u verified=1 restore=task_exit\n",
+                    static_cast<unsigned long long>(mask), unsigned(__builtin_popcountll(mask)));
+    return applied;
+#else
+    return false;
+#endif
+}
+unsigned StartupShaderWorkerCount(unsigned fallback) {
+    const auto mask = ShaderAffinityOps{}.Allowed();
+    return mask ? std::min(fallback, unsigned(__builtin_popcountll(mask))) : fallback;
+}
+
 void SampleGpuFrame(unsigned frame) {
     std::printf("EDEN_PERF_GPU_FRAME frame=%u mono_ns=%lld cpu_ns=%lld\n", frame,
                 ClockNs(CLOCK_MONOTONIC),

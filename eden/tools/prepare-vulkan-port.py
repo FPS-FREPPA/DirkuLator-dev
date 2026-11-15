@@ -11,6 +11,7 @@ def load_transform(name):
     module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
     return module
 native_policy = load_transform('prepare-native-shader-policy')
+startup_policy = load_transform('prepare-startup-shaders')
 
 def adapt(relative, destination, replacements):
     text = (source / relative).read_text()
@@ -617,15 +618,15 @@ adapt('src/video_core/renderer_vulkan/vk_staging_buffer_pool.cpp', 'vulkan_stagi
      '    ReleaseCache(MemoryUsage::Download);\n'
      '    // Idle kept buffers beyond 256 MiB go now, all of them when the pool runs low (staging_buffers.h).\n'
      '    static std::size_t largest = static_cast<std::size_t>(-1);\n'
+     '    static std::int64_t pool_free = -1;\n'
      '    static unsigned frames = 0;\n'
-     '    if (eden_direct_memory_free && frames++ % 16 == 0) {\n'
-     '        std::int64_t pool_free = -1;\n'
+     '    if (eden_direct_memory_free && (largest < (std::size_t{64} << 20) || frames++ % 16 == 0)) {\n'
      '        eden_direct_memory_free(&pool_free, &largest);\n'
      '    }\n'
      '    const auto released = ::Eden::StagingBuffers::TrimIdle(\n'
      '        std::array<StagingBuffersCache*, 3>{&device_local_cache, &upload_cache, &download_cache},\n'
      '        [this](const StagingBuffer& entry) { return !entry.deferred && scheduler.IsFree(entry.tick); },\n'
-     '        ::Eden::StagingBuffers::IdleAllowance(largest));\n'
+     '        ::Eden::StagingBuffers::IdleAllowance(largest, pool_free));\n'
      '    // A trim of 64 MiB or more: the 1st, 2nd, 4th, 8th ... in the log.\n'
      '    static unsigned long long large_trims = 0;\n'
      '    if (released.bytes >= (std::uint64_t{64} << 20)) {\n'
@@ -1728,6 +1729,7 @@ for old, new in pipeline_cache_writes:
         raise RuntimeError(f'Pipeline cache write anchor changed: {old[:60]}')
     shader_source = shader_source.replace(old, new)
 shader_source = native_policy.pipeline(shader_source)
+shader_source = startup_policy.pipeline(shader_source)
 shader_output = output / 'vk_pipeline_cache_cost.cpp'
 if not shader_output.exists() or shader_output.read_text() != shader_source:
     shader_output.write_text(shader_source)

@@ -281,7 +281,7 @@ static void *worker(void *argument) {
 
 int main(int argc, char **argv) {
     refuse_range = argc > 1 && strcmp(argv[1], "whole") == 0;
-    const size_t piece = (size_t)128 << 20, heap = (size_t)3072 << 20;
+    const size_t piece = (size_t)32 << 20, heap = (size_t)3072 << 20;
     void *first = __wrap_malloc(100);
     assert(first != NULL);
     if (!refuse_range) {
@@ -310,6 +310,17 @@ int main(int argc, char **argv) {
         // back when freed. It can grow in place of nothing: a resize moves it.
         unsigned blocks_alive = 99;
         assert(eden_heap_large_held(&blocks_alive) == 0 && blocks_alive == 0);
+        // Medium compiler scratch now returns memory on free instead of permanently
+        // growing the heap. A fallback still uses already-owned space if pages fail.
+        for (unsigned i = 0; i < 128; ++i) {
+            unsigned char *scratch = __wrap_malloc((size_t)8 << 20);
+            assert(scratch && eden_heap_large_held(&blocks_alive) == ((size_t)8 << 20));
+            fill(scratch, (size_t)8 << 20, i);
+            verify(scratch, (size_t)8 << 20, i);
+            __wrap_free(scratch);
+            assert(eden_heap_large_held(&blocks_alive) == 0 && blocks_alive == 0);
+        }
+        assert(eden_heap_committed() == after_threads);
         unsigned char *large = __wrap_malloc(5 * piece / 2);
         assert(large != NULL && eden_heap_committed() == after_threads);
         assert(eden_heap_large_held(&blocks_alive) == 5 * piece / 2 && blocks_alive == 1);
@@ -352,15 +363,15 @@ int main(int argc, char **argv) {
     enum { MANY = 4096 };
     static unsigned char *blocks[MANY];
     int count = 0;
-    while (count < MANY && (blocks[count] = __wrap_malloc((size_t)24 << 20)) != NULL) {
-        fill(blocks[count], (size_t)24 << 20, (unsigned)count);
+    while (count < MANY && (blocks[count] = __wrap_malloc((size_t)6 << 20)) != NULL) {
+        fill(blocks[count], (size_t)6 << 20, (unsigned)count);
         ++count;
     }
     assert(count > 20 && count < MANY && eden_heap_committed() <= heap);
     assert(__wrap_malloc((size_t)-1 - 4096) == NULL);
     void *unaligned = NULL;
     assert(__wrap_posix_memalign(&unaligned, 4096, (size_t)-1 - 8192) != 0);
-    for (int i = 0; i < count; ++i) { verify(blocks[i], (size_t)24 << 20, (unsigned)i); __wrap_free(blocks[i]); }
+    for (int i = 0; i < count; ++i) { verify(blocks[i], (size_t)6 << 20, (unsigned)i); __wrap_free(blocks[i]); }
     // After that, everything still works.
     unsigned char *again = __wrap_malloc(1000);
     assert(again != NULL);
@@ -368,7 +379,7 @@ int main(int argc, char **argv) {
     __wrap_free(again);
     __wrap_free(first);
     printf("%s: %lu operations on 8 threads, %u arenas, most in use at once %zu MiB, %zu MiB of pieces after the threads, "
-           "%zu MiB when full (%d blocks of 24 MiB)\n",
+           "%zu MiB when full (%d blocks of 6 MiB)\n",
            refuse_range ? "whole heap at once" : "heap by pieces", atomic_load(&operations), eden_heap_arenas_created(),
            peak >> 20, after_threads >> 20, eden_heap_committed() >> 20, count);
     return 0;

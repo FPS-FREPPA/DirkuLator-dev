@@ -41,6 +41,8 @@ inline constexpr std::uint64_t kLowLargestFree = std::uint64_t{512} << 20;
 // (4-8 MiB allocate/free pairs ~20 ms apart, 4-5 fps). Uploads come in pieces of 16 MiB or less now,
 // and a refused buffer still lets go of every idle one (MakeOrReclaim).
 inline constexpr std::uint64_t kIdleKeptLow = std::uint64_t{64} << 20;
+inline constexpr std::uint64_t kCriticalLargestFree = std::uint64_t{32} << 20;
+inline constexpr std::uint64_t kCriticalTotalFree = std::uint64_t{256} << 20;
 
 // Whether a transfer of `size` bytes gets a buffer of its own size. `mapped`: the CPU writes or
 // reads it (Eden's Upload and Download kinds); the buffers for the GPU alone keep their power of two.
@@ -108,7 +110,11 @@ auto MakeOrReclaim(Make&& make, Refused&& refused, Release&& release, Reclaim&& 
 
 // How many bytes of idle kept buffers may stay: kIdleKept, or kIdleKeptLow when the pool's largest
 // free block (`largest_free`, -1 when unknown) is under kLowLargestFree.
-constexpr std::uint64_t IdleAllowance(std::size_t largest_free) noexcept {
+constexpr std::uint64_t IdleAllowance(std::size_t largest_free, std::int64_t total_free = -1) noexcept {
+    // Keep the reuse allowance until actual allocation headroom is critical.
+    // Only completed, non-deferred buffers can be released by TrimIdle.
+    if ((largest_free != static_cast<std::size_t>(-1) && largest_free < kCriticalLargestFree) ||
+        (total_free >= 0 && static_cast<std::uint64_t>(total_free) < kCriticalTotalFree)) return 0;
     return largest_free != static_cast<std::size_t>(-1) && largest_free < kLowLargestFree ? kIdleKeptLow : kIdleKept;
 }
 

@@ -3,12 +3,12 @@
  * Memory. PS5 direct memory is real from the first byte, and the CPU shares one 12 GiB pool with
  * the GPU. The heap used to take its whole 3 GiB at start; the largest game measured used
  * 1.16 GiB of it, and the rest was graphics memory that game then ran out of. So the heap now
- * reserves its 3 GiB as address space only and commits it a piece (128 MiB) at a time, from the
+ * reserves its 3 GiB as address space only and commits it a piece (32 MiB) at a time, from the
  * start of the range, when an allocation finds no room. Every piece (or run of pieces, for one
  * request larger than a piece) is a Sony mspace of its own; an address tells its piece, and
  * the piece its mspace. Memory is not given back: a piece stays for the next game.
  *
- * Large blocks. A request of 32 MiB or more gets memory of its own, outside the range, and gives
+ * Large blocks. A request of 8 MiB or more gets memory of its own, outside the range, and gives
  * it back when it is freed: a game file read whole, or a buffer that doubles as it grows, would
  * otherwise leave the heap larger for good and its pieces full of holes no other large block fits.
  *
@@ -33,7 +33,7 @@
 /* Larger requests (and all over-aligned ones) always use the heap's own spaces. */
 #define EDEN_HEAP_SMALL_REQUEST (256u * 1024u)
 /* The heap grows by pieces of this size. */
-#define EDEN_HEAP_PIECE_SHIFT 27u /* 128 MiB */
+#define EDEN_HEAP_PIECE_SHIFT 25u /* 32 MiB: do not retain 128 MiB for one medium request. */
 #define EDEN_HEAP_PIECE_SIZE ((size_t)1 << EDEN_HEAP_PIECE_SHIFT)
 #define EDEN_HEAP_PIECES (PS5_OPENGL_HEAP_SIZE >> EDEN_HEAP_PIECE_SHIFT)
 
@@ -64,8 +64,8 @@ static atomic_uint eden_heap_space_hint; /* where the last allocation from the s
 static atomic_flag eden_heap_grow_lock = ATOMIC_FLAG_INIT;
 
 /* Requests of this size or more get memory of their own (eden_heap_pages), freed with them. */
-#define EDEN_HEAP_LARGE_REQUEST ((size_t)32 << 20)
-#define EDEN_HEAP_LARGE_BLOCKS 256u
+#define EDEN_HEAP_LARGE_REQUEST ((size_t)8 << 20)
+#define EDEN_HEAP_LARGE_BLOCKS 1024u
 /* The large blocks alive: address 0 marks a free entry, 1 one being filled in. */
 static struct {
   _Atomic uintptr_t address;
