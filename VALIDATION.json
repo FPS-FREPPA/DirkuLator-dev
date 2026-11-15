@@ -1,13 +1,13 @@
 {
-  "version": "0.57rc",
-  "content_version": "00.005.057",
-  "source_commit": "e44ae581dfccd60c8fee12347d35eb1c1e2654a2",
-  "started_utc": "2026-11-15T21:39:35.519527+00:00",
-  "finished_utc": "2026-11-15T21:44:30.974998+00:00",
+  "version": "0.58rc",
+  "content_version": "00.005.058",
+  "source_commit": "1de376e22afcbfd9c62464833a1957f5a9649f43",
+  "started_utc": "2026-11-15T22:10:44.796461+00:00",
+  "finished_utc": "2026-11-15T22:13:35.850339+00:00",
   "incremental_native_build": true,
   "compiler_cache_disabled": true,
-  "previous_elf_sha256": "db0100ad3076e938f31f6b81c0228f45cbe5a3c9bbd266dcb730057c3138fb91",
-  "elf_sha256": "5a5beec628d85cfb7d585064c3f0dea59cb09a3ce0d817f1f25d4b26016bb1b5",
+  "previous_elf_sha256": "5a5beec628d85cfb7d585064c3f0dea59cb09a3ce0d817f1f25d4b26016bb1b5",
+  "elf_sha256": "e2905d06778a582b6349a5a27183de5e08b575cfd3ad3f6149299697c6271fd4",
   "native_build_pass": true,
   "normal_release_checks_pass": true,
   "focused_components_pass": true,
@@ -18,14 +18,15 @@
   "hardware_oom_elimination_confirmed": false,
   "fog_or_mesh_fix_claimed": false,
   "check_log_sha256": {
-    "heap-fragmented.log": "53eeff648c1511d26314a3706db11c005a44d432595e352d2bd86566ee11ec4d",
-    "heap-fragmented-tsan.log": "d20e9fff0e86603de192fa7a3ff500c0cb79f2b76666b4acaae5c13b085ed483",
+    "gpu-staging-policy.log": "3ead9cff2bb2f8470b5ae090b28b7a5fce3380690f9fa9e170ebc4b483b39f3d",
+    "staging-integration.log": "855a1e881fcc7f0d50acadb74ddec03aefe99ab6bce2170879fe0b2b970a5e87",
     "repository-review.log": "e817a8d970f34eeb90bfcadf408522c0b302b9514d130f79d52c60c16973c7c2",
     "pressure-regression.log": "eec4101d661fd6155e4e75d867ebb9cce3a52aef1e9d8750229048fccaca6f21",
     "package-isolation.log": "a622d48baa6fa34225289b790da99104f3b4cc85f730700ea2556bce26764e2a",
-    "archive-tests.log": "43d4141d8f158a90c0e3f3bdb1dfe531be4672b7209665c6c8122681405b017c"
+    "archive-tests.log": "43d4141d8f158a90c0e3f3bdb1dfe531be4672b7209665c6c8122681405b017c",
+    "build.log": "c7bf87a8400a2e1131f51ddfdc201dff0265081ec21c93b5732c4d8df8dd4ba8"
   },
-  "source_archive_sha256": "9e837d53c80b02afb12561e1669ba2892d8b12007df1daedeaa999b2ba533b03",
+  "source_archive_sha256": "dd95e4a26f2fff7dc928ebba3c7cc25e04a5449308a2997d6730223c2a153780",
   "installation_verified": true,
   "installation_files": 72,
   "old_app_removed_first": true,
@@ -33,6 +34,6 @@
   "saves_preserved": true,
   "gameplay_fps_target": 30,
   "gameplay_fps_measured": false,
-  "installation_receipt_sha256": "4e7327c5dc5900ecdc56eac7582e71d28ea9ecf46c15a77c8b7c25348aeeaa5a",
-  "limits": "Native/package and host-component checks passed. Installation verified. Sustained PS5 stability, FPS improvement and fog/geometry correctness remain unqualified."
+  "installation_receipt_sha256": "ea300995dae5f762c4f0c31a9b134216d66825fd9d4fcaedbf9f197125b2d96b",
+  "limits": "GPU staging host-model/native package checks passed. Installation verified. Increased retention requires PS5 stability/FPS testing; no shader or geometry correction claimed."
 }

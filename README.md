@@ -43,8 +43,10 @@ The candidate retains 0.57rc's scattered CPU heap backing and relaxes the
 fragmentation-only GPU staging reuse cap when total memory headroom is known.
 The reusable completed-buffer allowance is 64, 128 or 256 MiB, with the same
 critical-memory cleanup and in-flight protections. See [BUILD-NOTES.md](BUILD-NOTES.md).
-0.58rc qualification is pending; VALIDATION.json remains the preceding 0.57rc
-receipt until completion. The installed 0.57rc remains a separate baseline.
+The production staging-policy/integration sanitizers, native/package checks and
+72-file installation verification passed. VALIDATION.json records exact source,
+binary hashes and limits. PS5 gameplay, stability and FPS improvement remain
+unqualified. 0.57rc is retained as a separate archived comparison baseline.
 
 ## Scope
 
