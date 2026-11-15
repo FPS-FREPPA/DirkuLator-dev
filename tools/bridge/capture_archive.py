@@ -149,17 +149,25 @@ def request_capture(ftp, read, write, record, output):
     before = read(LOGS + '/stderr.log', 64 * 1024 * 1024).decode(errors='replace').splitlines()
     prior = {line for line in before if COMPLETED.match(line)}
     write('/data/eden-nx2/capture-now.txt', b'1\n')
-    deadline = time.monotonic() + 90
+    # A synchronous native dump can take several minutes on console storage.
+    # Keep observing the same request; do not encourage another overlapping dump.
+    deadline = time.monotonic() + 600
     remote = None
+    reported_begin = set()
     while time.monotonic() < deadline:
         time.sleep(1)
         lines = read(LOGS + '/stderr.log', 64 * 1024 * 1024).decode(errors='replace').splitlines()
+        for line in lines[len(before):]:
+            if line.startswith('EDEN_FRAME_CAPTURE_BEGIN ') and line not in reported_begin:
+                reported_begin.add(line)
+                record('native synchronous capture began', native=line)
+                print('GPU capture in progress: rendering is paused by the native dump; waiting for completion.', flush=True)
         found = [COMPLETED.match(line) for line in lines if line not in prior and COMPLETED.match(line)]
         if found:
             remote = found[-1].group(3)
             break
     if remote is None:
-        raise RuntimeError('No completed GPU capture observed within 90 seconds; collector will still retain a later completed capture')
+        raise RuntimeError('No completed GPU capture observed within 600 seconds; do not overlap requests. Collector will retain a later completion')
     record('GPU capture completed', remote=remote)
     latest = ROOT / 'capture-archive/LATEST.json'
     if latest.is_file():
@@ -255,7 +263,7 @@ def main():
                         ftp.cwd(previous)
                     except error_perm:
                         active = False
-                    is_bridge = '00.005.021' in boot
+                    is_bridge = 'diagnostic build ' in boot and 'pid ' in boot
                     if active and is_bridge:
                         seen_active = True; absent = 0
                     elif seen_active:

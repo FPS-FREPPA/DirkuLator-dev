@@ -1,5 +1,5 @@
-DirkuLator 0.5.16: on the PS5 the texture collector follows the shared pool's total free memory (normal >= 1536 MiB,
-high < 1536, aggressive < 1024, tight < 512), not its largest block: 0.5.15 evicted and uploaded again at 4-7 fps
+DirkuLator 0.5.55rc: on the PS5 the texture collector follows the shared pool's total free memory (normal >= 2048 MiB,
+high < 2048, aggressive < 1536, tight < 1024), not its largest block: 0.5.15 evicted and uploaded again at 4-7 fps
 with 700 MiB free in 58 MiB blocks.
 
 diff --git a/src/video_core/texture_cache/texture_cache.h b/src/video_core/texture_cache/texture_cache.h
@@ -13,7 +13,7 @@ diff --git a/src/video_core/texture_cache/texture_cache.h b/src/video_core/textu
 +// The pool's free memory and largest free block, -1 when unknown (src/memory_pages.cpp). C linkage:
 +// the same global function vk_staging_buffer_pool.cpp declares, though declared in this namespace.
 +extern "C" void eden_direct_memory_free(std::int64_t*, std::size_t*) noexcept __attribute__((weak));
-+/// 0.5.15: the shared pool is nearly out (set by TickFrame; 0.5.16: under 512 MiB free in all).
++/// The shared pool is nearly out (set by TickFrame; 0.5.55rc: under 1024 MiB free in all).
  inline bool ps5_pool_tight{};
  #endif
  
@@ -30,25 +30,25 @@ diff --git a/src/video_core/texture_cache/texture_cache.h b/src/video_core/textu
 -            ps5_pool_tight = largest < 96_MiB;
 -            if (largest < 256_MiB) {
 +    // 0.5.15: the driver's usage is its 6 GiB heap, not the shared pool. 0.5.16: collect by the
-+    // pool's total free memory (read every 8th frame): normal from 1536 MiB, high priority under
-+    // it, aggressive under 1024 MiB, the tight pass under 512 MiB. A small largest block alone no
++    // pool's total free memory (every frame below 2 GiB): normal from 2048 MiB, high priority under
++    // it, aggressive under 1536 MiB, the tight pass under 1024 MiB. A small largest block alone no
 +    // longer evicts (0.5.15 evicted and uploaded again at 4-7 fps with 700 MiB free in 58 MiB
 +    // blocks); uploads come in pieces of 16 MiB or less. GPU-written images are still read back.
 +    if (eden_direct_memory_free) {
 +        static u32 pool_frames{};
 +        static std::int64_t pool_free = -1;
-+        if (pool_frames++ % 8 == 0) {
++        if (pool_frames++ % 8 == 0 || (pool_free >= 0 && pool_free < 2048 * 1024 * 1024LL)) {
 +            std::size_t largest = static_cast<std::size_t>(-1);
 +            eden_direct_memory_free(&pool_free, &largest);
 +        }
 +        if (pool_free >= 0) {
 +            const u64 free_bytes = static_cast<u64>(pool_free);
-+            ps5_pool_tight = free_bytes < 512_MiB;
-+            if (free_bytes < 1024_MiB) {
++            ps5_pool_tight = free_bytes < 1024_MiB;
++            if (free_bytes < 1536_MiB) {
                  total_used_memory = (std::max)(total_used_memory,
                                                 critical_memory + (ps5_pool_tight ? 1_GiB : 512_MiB));
 -            } else if (largest < 640_MiB && expected_memory + 256_MiB < critical_memory) {
-+            } else if (free_bytes < 1536_MiB && expected_memory + 256_MiB < critical_memory) {
++            } else if (free_bytes < 2048_MiB && expected_memory + 256_MiB < critical_memory) {
                  total_used_memory = (std::clamp)(total_used_memory, expected_memory + 256_MiB, critical_memory - 1);
              } else {
                  total_used_memory = (std::min)(total_used_memory, expected_memory - 1);

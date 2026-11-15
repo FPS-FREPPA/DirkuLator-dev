@@ -1250,6 +1250,20 @@ for method, address_type in (('MarkPartialWrite', 'DAddr'), ('MarkPartialRemap',
 
 adapt('src/video_core/texture_cache/texture_cache.h',
       'vulkan-cache/video_core/texture_cache/texture_cache.h', [
+    ('    if (capture_now) {\n        static unsigned captures{};',
+     '    if (capture_now) {\n'
+     '        const auto capture_started = std::chrono::steady_clock::now();\n'
+     '        std::fprintf(stderr, "EDEN_FRAME_CAPTURE_BEGIN frame=%llu synchronous=1 rendering_paused=1\\n",\n'
+     '                     static_cast<unsigned long long>(frame_tick));\n'
+     '        std::fflush(stderr);\n'
+     '        static unsigned captures{};'),
+    ('static_cast<unsigned long long>(frame_tick), order, folder.string().c_str());',
+     'static_cast<unsigned long long>(frame_tick), order, folder.string().c_str());\n'
+     '        std::fprintf(stderr, "EDEN_FRAME_CAPTURE_TIMING frame=%llu milliseconds=%lld synchronous=1\\n",\n'
+     '                     static_cast<unsigned long long>(frame_tick),\n'
+     '                     static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(\n'
+     '                         std::chrono::steady_clock::now() - capture_started).count()));\n'
+     '        std::fflush(stderr);'),
     ('namespace VideoCommon {', '#include "performance.h"\n#include "texture_partial.h"\n#include "image_pages.h"\n#include "astc_policy.h"\n#include "common/scope_exit.h"\nnamespace Vulkan { class TextureCacheRuntime; }\n\nnamespace VideoCommon {'),
     # An ASTC texture kept as BC3 is converted in the background in a busy frame only, and in
     # place on a light screen (headless/astc_policy.h). The frame is counted where the texture
