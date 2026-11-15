@@ -1,7 +1,9 @@
 # Source and rebuilding
 
-The source for this development candidate is the `v0.5.54rc` tag at
-https://github.com/FPS-FREPPA/DirkuLator-dev and the accompanying source archive.
+The source for 0.57rc is on the `DirkuLator-dev` branch at
+https://github.com/FPS-FREPPA/DirkuLator-dev. The package's VALIDATION.json
+identifies the exact compiled source commit; its accompanying source archive
+contains that commit. Existing candidate tags remain unchanged.
 The Git history, port modifications, patch series, and build/packaging scripts
 are included. From the source root, run `cd eden` and `make package JOBS=6` on
 the Linux/WSL environment described in `eden/docs/BUILDING.md`.

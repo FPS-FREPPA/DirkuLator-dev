@@ -759,17 +759,21 @@ void* ReserveMemoryRange(std::size_t size) noexcept {
 namespace {
 // Scratch only, not a live allocation ledger: this heap keeps successful pieces
 // for the process lifetime. Static storage avoids allocation and a large stack
-// inside malloc. 8192 pieces cover up to 16 GiB at the minimum 2 MiB granule.
+// inside malloc. 8192 pieces cover up to 128 MiB at the minimum 16 KiB CPU granule.
 std::array<FragmentedCommit::Piece, 8192> heap_commit_scratch;
 std::atomic_flag heap_commit_lock = ATOMIC_FLAG_INIT;
+constexpr std::size_t HeapCommitPage = 0x4000;
 struct HeapCommitOps {
     bool Allocate(std::size_t size, std::int64_t& physical) noexcept {
-        return eden_direct_high(size, LargePage, 12, &physical) == 0;
+        const auto alignment = size % LargePage == 0 ? LargePage : HeapCommitPage;
+        return eden_direct_high(size, alignment, 12, &physical) == 0;
     }
     bool Map(const FragmentedCommit::Piece& piece) noexcept {
         void* at = reinterpret_cast<void*>(piece.address);
+        const auto alignment = (piece.address % LargePage == 0 && piece.physical % LargePage == 0 &&
+                                piece.size % LargePage == 0) ? LargePage : HeapCommitPage;
         const int result = sceKernelMapDirectMemory(&at, piece.size, PROT_READ | PROT_WRITE,
-                                                    MAP_FIXED, piece.physical, LargePage);
+                                                    MAP_FIXED, piece.physical, alignment);
         // MAP_FIXED must never map at a different address. A live unexpected
         // mapping cannot safely be released as an unmapped allocation.
         if (result == 0 && at != reinterpret_cast<void*>(piece.address)) std::abort();
@@ -782,7 +786,7 @@ struct HeapCommitOps {
         void* const address = reinterpret_cast<void*>(piece.address);
         if (munmap(address, piece.size) != 0) std::abort();
         void* again = address;
-        if (sceKernelReserveVirtualRange(&again, piece.size, MAP_FIXED, LargePage) != 0 ||
+        if (sceKernelReserveVirtualRange(&again, piece.size, MAP_FIXED, HeapCommitPage) != 0 ||
             again != address) std::abort();
         ReleaseUnmapped(piece);
     }
@@ -803,7 +807,7 @@ bool CommitMemoryRange(void* address, std::size_t size) noexcept {
     HeapCommitOps ops;
     std::size_t blocks = 0;
     const bool committed = FragmentedCommit::Commit(reinterpret_cast<std::uintptr_t>(address), size,
-                                                   LargePage, heap_commit_scratch, ops, blocks);
+                                                   HeapCommitPage, heap_commit_scratch, ops, blocks);
     heap_commit_lock.clear(std::memory_order_release);
     if (!committed) return false;
     // The heap grows through here: no stdio (it may allocate).

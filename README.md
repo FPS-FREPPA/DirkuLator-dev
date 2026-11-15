@@ -31,21 +31,21 @@ hardware. This is early development, with substantial work remaining.
    dependencies, build instructions, licenses, and honest results so others can
    fork, build, investigate, and contribute.
 
-## Development candidate: 0.56rc
+## Development candidate: 0.57rc
 
-This repository contains the current working source and patch set. **0.56rc is a
+This repository contains the current working source and patch set. **0.57rc is a
 development release candidate, not a stable compatibility release.** Its PS5
-content version is `00.005.056` and its application title is **DirkuLator**
+content version is `00.005.057` and its application title is **DirkuLator**
 (`PPSA99862`). The `rc` designation belongs to the release tag and archive name;
 the console requires a numeric content version.
 
-The candidate adds startup-only compiler affinity, more elastic allocation
-retention, and driver source/archive/binary checks after a stale memory-patch
-receipt was found in 0.5.55rc. See [BUILD-NOTES.md](BUILD-NOTES.md) for scope and
-validation status. Native compilation, component regressions and package checks
-passed; [VALIDATION.json](VALIDATION.json) records their coverage and exact source
-commit. PS5 performance and sustained stability await testing; no fog/mesh
-correction is claimed.
+The candidate adds separately releasable scattered physical backing for large
+CPU heap blocks and lets permanent C-heap growth use 16 KiB physical pieces.
+This addresses a reproduced allocation failure in 0.56rc. See
+[BUILD-NOTES.md](BUILD-NOTES.md) for scope, bounds and qualification.
+Native checks are pending; the preceding [VALIDATION.json](VALIDATION.json)
+remains the historical 0.56rc receipt until qualification completes. PS5
+performance and sustained stability still require testing.
 
 ## Scope
 
@@ -61,7 +61,7 @@ correction is claimed.
 
 This candidate does not claim to fix the observed white/cyan fog, sharp fog
 boundaries, or mesh/vertex shattering. Earlier 0.5.21 hardware runs demonstrated
-startup and gameplay; those results do not certify 0.56rc. No compatibility or
+startup and gameplay; those results do not certify 0.57rc. No compatibility or
 performance result is implied for games that have not been tested.
 
 ## Build
@@ -118,3 +118,6 @@ repository housekeeping changes are recorded separately in Git.
 
 ROMs, game keys, proprietary firmware/system modules, saves, credentials,
 private console captures, and local build caches are not part of this repository.
+
+0.56rc subsequently failed on PS5 from physical-memory exhaustion and fragmentation.
+0.57rc adds scattered CPU heap backing; see BUILD-NOTES.md for its bounds and qualification.
