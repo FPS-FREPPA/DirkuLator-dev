@@ -68,8 +68,10 @@ int main() {
     using namespace Eden::StagingBuffers;
     constexpr uint64_t MiB=1ULL<<20;
     static_assert(IdleAllowance(512*MiB)==256*MiB);
-    static_assert(IdleAllowance(128*MiB,1024*MiB)==64*MiB);
-    static_assert(IdleAllowance(31*MiB,1024*MiB)==0);
+    static_assert(IdleAllowance(128*MiB,1024*MiB)==256*MiB);
+    static_assert(IdleAllowance(31*MiB,1024*MiB)==256*MiB);
+    static_assert(IdleAllowance(1*MiB,1024*MiB)==0);
+    static_assert(IdleAllowance(128*MiB,768*MiB)==128*MiB);
     static_assert(IdleAllowance(128*MiB,255*MiB)==0);
     static_assert(IdleAllowance(32*MiB,256*MiB)==64*MiB);
     static_assert(IdleAllowance(size_t(-1),-1)==256*MiB);
