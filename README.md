@@ -1,5 +1,7 @@
 # DirkuLator
 
+Project and AI-assisted contributions are credited in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
 **The goal is to run Nintendo Switch 2 software accurately and usefully on a
 native PS5 homebrew emulator.** The work covers CPU execution, GPU instruction
 translation, rendering, memory and synchronization, controllers, audio, and the
