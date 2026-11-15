@@ -42,9 +42,10 @@ the console requires a numeric content version.
 The candidate adds startup-only compiler affinity, more elastic allocation
 retention, and driver source/archive/binary checks after a stale memory-patch
 receipt was found in 0.5.55rc. See [BUILD-NOTES.md](BUILD-NOTES.md) for scope and
-validation status. The previous [VALIDATION.json](VALIDATION.json) describes
-0.5.54rc until the new qualification receipt is written. No hardware improvement
-or fog/mesh correction is claimed before testing.
+validation status. Native compilation, component regressions and package checks
+passed; [VALIDATION.json](VALIDATION.json) records their coverage and exact source
+commit. PS5 performance and sustained stability await testing; no fog/mesh
+correction is claimed.
 
 ## Scope
 
@@ -60,7 +61,7 @@ or fog/mesh correction is claimed before testing.
 
 This candidate does not claim to fix the observed white/cyan fog, sharp fog
 boundaries, or mesh/vertex shattering. Earlier 0.5.21 hardware runs demonstrated
-startup and gameplay; those results do not certify 0.5.54rc. No compatibility or
+startup and gameplay; those results do not certify 0.56rc. No compatibility or
 performance result is implied for games that have not been tested.
 
 ## Build

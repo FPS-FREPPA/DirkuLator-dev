@@ -27,9 +27,12 @@ Native PS5 title PPSA99862, content version 00.005.056.
 
 ## Verification and limits
 
-Qualification is in progress. The candidate must pass the focused startup-scope,
-driver repair/fragmentation/rollback, concurrent heap, staging, and normal native
-package checks before delivery. Release receipts record actual outcomes.
+Fresh-object native compilation, normal release/package checks, startup-affinity
+scope/transform checks, driver repair/fragmentation/rollback sanitizers, eight-thread
+heap tests including TSan, staging/reclamation checks, memory-pressure regression,
+capture-archive tests and package isolation passed. All 159 dependency license
+hashes and repository hygiene checks passed. See VALIDATION.json for the source
+commit, binary hash, check-log hashes and limits. No PS5 gameplay pass is claimed.
 
 Mock/sanitizer tests do not measure PS5 compilation speed, whole-chip GPU load,
 memory fragmentation over a real play session, or shader numerical correctness.
