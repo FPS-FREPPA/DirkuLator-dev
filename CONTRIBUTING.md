@@ -39,3 +39,21 @@ reports should contain only evidence the reporter is allowed to share.
 Preserve published candidate tags. Put follow-up changes in a new commit and
 identify a new candidate when emulator code changes. Keep matching source access
 and license notices available with binary distributions; see [SOURCES.md](SOURCES.md).
+
+## Release delivery
+
+For every completed RC, push the corresponding source commits to `DirkuLator-dev`
+in `FPS-FREPPA/DirkuLator-dev` and publish the installable PS5 ZIP on GitHub
+Releases as a prerelease. Source commits alone do not complete an RC delivery.
+This is the user's standing workflow unless they explicitly defer publication.
+
+Include the matching corresponding-source ZIP, validation receipt, SHA256
+checksums, a specific change summary, actual verification and remaining limits.
+Download the uploaded assets and verify their hashes before marking delivery
+complete. Link the release/downloads in the README and final handoff.
+
+Keep binary ZIPs in Releases rather than Git history. Preserve existing published
+tags and assets; emulator binary changes require a new candidate version. State
+the exact compiled source and qualification revisions, installed version, and
+whether gameplay/performance were actually tested. Host checks are not hardware
+FPS or stability results.

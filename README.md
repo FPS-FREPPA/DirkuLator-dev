@@ -48,6 +48,16 @@ The production staging-policy/integration sanitizers, native/package checks and
 binary hashes and limits. PS5 gameplay, stability and FPS improvement remain
 unqualified. 0.57rc is retained as a separate archived comparison baseline.
 
+## Downloads
+
+Verified development prereleases, with matching source, checksums, change notes and test protocols.
+
+- **0.58rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-source.zip) · [Release notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.58rc).
+- **0.57rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-source.zip) · [Release notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.57rc).
+
+0.58rc is the current installed test candidate. The 30 FPS target and sustained
+hardware stability still require the repeat-route gameplay test.
+
 ## Scope
 
 - Native PS5 frontend, launcher, Vulkan/OpenGL integration, game loading, audio,
