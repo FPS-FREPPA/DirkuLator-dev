@@ -31,22 +31,20 @@ hardware. This is early development, with substantial work remaining.
    dependencies, build instructions, licenses, and honest results so others can
    fork, build, investigate, and contribute.
 
-## Development candidate: 0.57rc
+## Development candidate: 0.58rc
 
-This repository contains the current working source and patch set. **0.57rc is a
+This repository contains the current working source and patch set. **0.58rc is a
 development release candidate, not a stable compatibility release.** Its PS5
-content version is `00.005.057` and its application title is **DirkuLator**
+content version is `00.005.058` and its application title is **DirkuLator**
 (`PPSA99862`). The `rc` designation belongs to the release tag and archive name;
 the console requires a numeric content version.
 
-The candidate adds separately releasable scattered physical backing for large
-CPU heap blocks and lets permanent C-heap growth use 16 KiB physical pieces.
-This addresses a reproduced allocation failure in 0.56rc. See
-[BUILD-NOTES.md](BUILD-NOTES.md) for scope, bounds and qualification.
-Native compilation, focused sanitizer/concurrency regressions, normal package
-checks and installation verification passed. [VALIDATION.json](VALIDATION.json)
-records the compiled source, binary hashes and coverage. The gameplay target is
-30 FPS; sustained PS5 stability and measured performance still require testing.
+The candidate retains 0.57rc's scattered CPU heap backing and relaxes the
+fragmentation-only GPU staging reuse cap when total memory headroom is known.
+The reusable completed-buffer allowance is 64, 128 or 256 MiB, with the same
+critical-memory cleanup and in-flight protections. See [BUILD-NOTES.md](BUILD-NOTES.md).
+0.58rc qualification is pending; VALIDATION.json remains the preceding 0.57rc
+receipt until completion. The installed 0.57rc remains a separate baseline.
 
 ## Scope
 
@@ -62,7 +60,7 @@ records the compiled source, binary hashes and coverage. The gameplay target is
 
 This candidate does not claim to fix the observed white/cyan fog, sharp fog
 boundaries, or mesh/vertex shattering. Earlier 0.5.21 hardware runs demonstrated
-startup and gameplay; those results do not certify 0.57rc. No compatibility or
+startup and gameplay; those results do not certify 0.58rc. No compatibility or
 performance result is implied for games that have not been tested.
 
 ## Build

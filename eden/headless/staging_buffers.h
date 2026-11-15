@@ -20,7 +20,7 @@
 // Eden lets go of kept buffers slowly (16 of one power of two per frame), so a loading burst left
 // 610 MiB of them idle in the shared pool while the CPU was refused 361 MiB (issue #20). Each frame
 // at most 256 MiB of buffers the GPU is done with stay kept, the largest go first, and none stay
-// when the pool's largest free block is under 512 MiB.
+// when actual shared-pool headroom is critical.
 #pragma once
 #include <algorithm>
 #include <array>
@@ -108,13 +108,22 @@ auto MakeOrReclaim(Make&& make, Refused&& refused, Release&& release, Reclaim&& 
     }
 }
 
-// How many bytes of idle kept buffers may stay: kIdleKept, or kIdleKeptLow when the pool's largest
-// free block (`largest_free`, -1 when unknown) is under kLowLargestFree.
+// How many completed idle bytes may stay: tiered total headroom when known,
+// with the preceding largest-block rule as the unknown-total fallback.
 constexpr std::uint64_t IdleAllowance(std::size_t largest_free, std::int64_t total_free = -1) noexcept {
-    // Keep the reuse allowance until actual allocation headroom is critical.
-    // Only completed, non-deferred buffers can be released by TrimIdle.
-    if ((largest_free != static_cast<std::size_t>(-1) && largest_free < kCriticalLargestFree) ||
-        (total_free >= 0 && static_cast<std::uint64_t>(total_free) < kCriticalTotalFree)) return 0;
+    // Chunked RADV backing can use separate 2 MiB physical ranges. Fragmentation
+    // alone need not force the reusable pool down to 64 MiB or zero. Keep the
+    // old conservative rule when total headroom is unknown; otherwise tier by total free.
+    constexpr std::uint64_t MiB = std::uint64_t{1} << 20;
+    if (total_free >= 0) {
+        const auto available = static_cast<std::uint64_t>(total_free);
+        if (available < kCriticalTotalFree ||
+            (largest_free != static_cast<std::size_t>(-1) && largest_free < 2 * MiB)) return 0;
+        if (available >= 1024 * MiB) return kIdleKept;
+        if (available >= 512 * MiB) return 128 * MiB;
+        return kIdleKeptLow;
+    }
+    if (largest_free != static_cast<std::size_t>(-1) && largest_free < kCriticalLargestFree) return 0;
     return largest_free != static_cast<std::size_t>(-1) && largest_free < kLowLargestFree ? kIdleKeptLow : kIdleKept;
 }
 

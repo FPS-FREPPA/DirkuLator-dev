@@ -92,11 +92,14 @@ int main() {
     const Released low = TrimIdle(caches, idle, IdleAllowance(125 * MiB));
     assert(IdleBytes(caches) <= 64 * MiB && low.bytes > 0);
     assert(Has(caches, busy) && Has(caches, deferred));
-    // Critical fragmentation or total headroom releases every completed idle buffer.
+    // Critical total headroom or sub-2-MiB physical holes releases every idle buffer.
     static_assert(IdleAllowance(32 * MiB, 256 * MiB) == 64 * MiB);
-    static_assert(IdleAllowance(32 * MiB - 1, 256 * MiB) == 0);
+    static_assert(IdleAllowance(32 * MiB - 1, 256 * MiB) == 64 * MiB);
+    static_assert(IdleAllowance(1 * MiB, 2048 * MiB) == 0);
+    static_assert(IdleAllowance(64 * MiB, 768 * MiB) == 128 * MiB);
+    static_assert(IdleAllowance(64 * MiB, 1024 * MiB) == 256 * MiB);
     static_assert(IdleAllowance(512 * MiB, 256 * MiB - 1) == 0);
-    const Released critical = TrimIdle(caches, idle, IdleAllowance(31 * MiB, 260 * MiB));
+    const Released critical = TrimIdle(caches, idle, IdleAllowance(31 * MiB, 255 * MiB));
     assert(critical.bytes > 0 && IdleBytes(caches) == 0);
     assert(Has(caches, busy) && Has(caches, deferred));
     std::printf("PASS: idle staging trim: 608 MiB idle -> %llu MiB (cap 256, largest first), then <= 64 MiB when the largest free block < 512 MiB; busy/deferred kept\n",
