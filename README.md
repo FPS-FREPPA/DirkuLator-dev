@@ -43,9 +43,10 @@ The candidate adds separately releasable scattered physical backing for large
 CPU heap blocks and lets permanent C-heap growth use 16 KiB physical pieces.
 This addresses a reproduced allocation failure in 0.56rc. See
 [BUILD-NOTES.md](BUILD-NOTES.md) for scope, bounds and qualification.
-Native checks are pending; the preceding [VALIDATION.json](VALIDATION.json)
-remains the historical 0.56rc receipt until qualification completes. PS5
-performance and sustained stability still require testing.
+Native compilation, focused sanitizer/concurrency regressions, normal package
+checks and installation verification passed. [VALIDATION.json](VALIDATION.json)
+records the compiled source, binary hashes and coverage. The gameplay target is
+30 FPS; sustained PS5 stability and measured performance still require testing.
 
 ## Scope
 

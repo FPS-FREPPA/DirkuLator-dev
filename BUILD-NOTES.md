@@ -44,12 +44,28 @@ feedback, or texture-content change was included in this allocation candidate.
 
 ## Verification and limits
 
-Qualification is pending. The regression compiles the production heap backend
-and permanent-commit operations against file-backed physical ranges. It checks
-the recorded 64 MiB request with 1 MiB holes, zeroing, read/write content,
-alignment, complete free/reuse, map/allocation/reservation failure rollback,
-ledger bounds and eight concurrent threads. The previous backend must fail the
-recorded allocation case. Build and qualification receipts record actual results.
+Native compilation and the normal release/package checks passed. The actual
+production heap backend and permanent-commit operations passed ASan/UBSan and
+TSan checks for the recorded 64 MiB failure with 1 MiB holes, zeroing, contents,
+alignment, complete release/reuse, allocation/map/reservation failure rollback,
+ledger bounds and eight concurrent threads. The preceding backend reproduces
+the allocation failure. The focused pressure regression, package isolation,
+capture-archive tests, repository hygiene and all 159 license hashes passed.
+The build was incremental with compiler-cache reuse disabled; receipts identify
+the exact compiled source and ELF hashes. See VALIDATION.json for coverage.
+
+The installed 0.56rc app was backed up and removed before 0.57rc upload. All 72
+new files matched a complete raw FTP read-back. Source and registered metadata
+report 00.005.057; the installation manager confirms the title is installed and
+closed. RADV, startup-shader and native OpenGL shader caches were backed up and
+removed. Saves, ROMs, keys, firmware, settings and diagnostic dumps were retained.
+Installation is verified; 0.57rc gameplay and performance are not yet qualified.
+
+The overnight protocol restarts New Game with cold shader caches every run and
+repeats one fixed house/ladder/bridge/shop/house route. The gameplay target is
+30 FPS, measured at stable repeatable checkpoints. No emulation-speed, accuracy,
+frame-generation, shader-suppression or scene-dependent quality change was added
+to manufacture that number. See TEST_PROTOCOL_0_57RC.md for the repeat procedure.
 
 0.56rc did not establish sustained hardware stability. White/cyan washout,
 rectangular fog and geometry defects remain unresolved. This candidate claims
