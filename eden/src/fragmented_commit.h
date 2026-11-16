@@ -7,6 +7,14 @@
 #include <limits>
 #include <span>
 
+namespace Common {
+// A stretch of the heap whose memory was given back (DecommitHeapRange) and can be asked for again.
+struct HeapHole {
+    std::uintptr_t address;
+    std::size_t size;
+};
+} // namespace Common
+
 namespace Common::FragmentedCommit {
 struct Piece {
     std::uintptr_t address;

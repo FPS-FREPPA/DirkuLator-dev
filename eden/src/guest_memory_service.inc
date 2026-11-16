@@ -69,6 +69,9 @@ struct Counters {
     std::atomic<std::uint64_t> fined{0}, unfined{0}, fine_failures{0};
 };
 Counters counters;
+// How long (ms) a thread whose write found the pool empty waits for it before the failure counts
+// (HandleGuestWriteFault); 0 fails at once.
+std::atomic<std::uint32_t> fault_patience_ms{3000};
 // The failure counter also latches OOM until the service counters reset.
 static_assert(std::atomic<std::uint64_t>::is_always_lock_free);
 static_assert(std::atomic<std::size_t>::is_always_lock_free);
@@ -537,6 +540,27 @@ bool HandleGuestWriteFault(void* fault) noexcept {
         ok = PromoteShared(*range, slot);
     }
     UnlockSlot(*range, slot, ok ? SlotOwn : state);
+    // DirkuLator 0.60rc: a refused block is usually a transient peak (a loading burst's staging
+    // blocks are let go again within 100 ms), and 0.59rc ended on a 4 KiB write that found the pool
+    // empty for that long. The slot stays as it was, the thread waits 5 ms and the instruction
+    // repeats (it faults again and asks again), for up to 3 s from the first refusal; only then
+    // does the failure count and the process end. The wait holds no lock.
+    static thread_local std::uint64_t refused_since_ms = 0;
+    if (ok) {
+        refused_since_ms = 0;
+    } else {
+        timespec now{};
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        const std::uint64_t now_ms = static_cast<std::uint64_t>(now.tv_sec) * 1000 + now.tv_nsec / 1000000;
+        if (refused_since_ms == 0) refused_since_ms = now_ms;
+        if (now_ms - refused_since_ms < fault_patience_ms.load(std::memory_order_relaxed)) {
+            counters.waits.fetch_add(1, std::memory_order_relaxed);
+            timespec nap{0, 5 * 1000 * 1000};
+            nanosleep(&nap, nullptr);
+            return true;
+        }
+        refused_since_ms = 0;
+    }
     if (!ok) {
         const auto failures = counters.failures.fetch_add(1, std::memory_order_release) + 1;
         OomNoticeLine line;

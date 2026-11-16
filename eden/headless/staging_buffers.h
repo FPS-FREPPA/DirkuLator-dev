@@ -24,8 +24,10 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <thread>
 
 namespace Eden::StagingBuffers {
 // DirkuLator 0.5.3: 4 MiB, was 16 MiB. 0.5.2 was refused a 12 MiB + 48 upload made as 16 MiB
@@ -92,18 +94,40 @@ Released ReleaseFrom(Level& level, Drop&& drop) {
 // Makes a buffer with `make`. Refused (a `Refusal` that `refused` accepts), `release` runs and it
 // is asked for again; refused again, `reclaim` runs and it is asked for once more; refused a third
 // time, the error goes on. Any other error goes on at once.
+//
+// DirkuLator 0.60rc: `patience` (0: none, as before) keeps asking after the third refusal, every
+// 50 ms, until it is spent. A refusal at the end of a loading burst is transient: the burst's own
+// staging blocks (60-140 MiB, allocated and let go again within 100 ms) and the other threads'
+// buffers come back to the pool at once, and 0.58rc/0.59rc ended the session on a 36 MiB upload
+// that was refused three times within a millisecond with 100 MiB free in the pool. Every 250 ms of
+// waiting `release` and `reclaim` run again.
 template <class Refusal, class Make, class Refused, class Release, class Reclaim>
-auto MakeOrReclaim(Make&& make, Refused&& refused, Release&& release, Reclaim&& reclaim) {
+auto MakeOrReclaim(Make&& make, Refused&& refused, Release&& release, Reclaim&& reclaim,
+                   std::chrono::milliseconds patience = std::chrono::milliseconds{0}) {
+    using Clock = std::chrono::steady_clock;
+    Clock::time_point waiting_since{};
+    unsigned waits = 0;
     for (int refusals = 0;; ++refusals) {
         try {
             return make();
         } catch (const Refusal& error) {
-            if (!refused(error) || refusals == 2) throw;
+            if (!refused(error)) throw;
+            if (refusals >= 2) {
+                if (patience.count() <= 0) throw;
+                if (refusals == 2) waiting_since = Clock::now();
+                else if (Clock::now() - waiting_since >= patience) throw;
+            }
         }
         if (refusals == 0) {
             release();
-        } else {
+        } else if (refusals == 1) {
             reclaim();
+        } else {
+            std::this_thread::sleep_for(std::chrono::milliseconds{50});
+            if (++waits % 5 == 0) {
+                release();
+                reclaim();
+            }
         }
     }
 }

@@ -15,6 +15,8 @@
 namespace Common {
 void* ReserveMemoryRange(std::size_t size) noexcept;
 bool CommitMemoryRange(void* address, std::size_t size) noexcept;
+unsigned DecommitHeapRange(std::uintptr_t low, std::uintptr_t high, HeapHole* holes, unsigned max) noexcept;
+bool RecommitHeapHole(const HeapHole& hole) noexcept;
 } // namespace Common
 
 #ifdef PS5_NATIVE
@@ -146,4 +148,12 @@ extern "C" void* eden_heap_reserve(std::size_t size) {
 }
 extern "C" int eden_heap_commit(void* address, std::size_t size) {
     return Common::CommitMemoryRange(address, size) ? 0 : -1;
+}
+// DirkuLator 0.60rc: memory of an idle stretch of the heap goes back to the pool (heap_arenas.inc).
+// `holes` is an array of {address, size} pairs, as Common::HeapHole.
+extern "C" unsigned eden_heap_decommit(std::uintptr_t low, std::uintptr_t high, Common::HeapHole* holes, unsigned max) {
+    return Common::DecommitHeapRange(low, high, holes, max);
+}
+extern "C" int eden_heap_recommit(const Common::HeapHole* hole) {
+    return Common::RecommitHeapHole(*hole) ? 0 : -1;
 }

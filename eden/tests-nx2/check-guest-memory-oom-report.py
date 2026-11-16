@@ -108,6 +108,7 @@ std::int32_t sceKernelAvailableDirectMemorySize(std::int64_t, std::int64_t,
 main = r'''
 int main() {
     auto* address = reinterpret_cast<void*>(SparseSlot);
+    fault_patience_ms.store(0); // the refusals below fail at once
     auto output = [] { return std::string_view(report.data, report.size); };
     auto check_empty = [&] {
         report.Clear(); report.Put("unchanged"); PutGuestMemoryOom();

@@ -1,58 +1,56 @@
-# DirkuLator 0.59rc
+# DirkuLator 0.60rc
 
-Native PS5 title PPSA99862, content version 00.005.059.
+Native PS5 title PPSA99862, content version 00.005.060, development channel.
 
-## Ocarina floating-point select accuracy
+## Why
 
-Enable the existing FSEL operand-modifier correction for Ocarina of Time
-(program 0400486024DEC000). A captured shader, key 1a55fa57a335b963,
-contains FSEL R37, R14, -R14, P0 at offset 0x910 and FSEL R39, R20,
--R20, P1 at 0x9f0. NVIDIA nvdisasm 13.5.37, with the explicitly selected
-SM86 decoder, independently confirms those instructions. The old Ocarina
-policy ignored the negation and selected between identical register values.
-The corrected path preserves negation and absolute-value modifiers using
-bit operations, including signed zero and NaN payloads. Integer SEL keeps
-its original behavior. Shader-cache tags change for Ocarina so previously
-compiled incorrect shaders are rebuilt.
+Every 0.58rc and 0.59rc session ended by running out of the 12,416 MiB shared pool, not by a leak.
+From about five minutes in the guest held ~5.8 GiB, graphics ~2.7 GiB, the CPU heap 1.7 GiB (never
+given back: it had grown while shaders compiled in the first minutes) and large CPU blocks ~0.8 GiB;
+total free sat near 250 MiB for 15+ minutes. A loading burst (60-140 MiB of staging blocks allocated
+and let go again within 100 ms) then found the pool empty:
 
-The shader inputs remain private. NVIDIA tool archive SHA256:
-8cc7edd8219882d46eabbd6a686fdf7487fbb9faab4b79398051699ff88fa137.
-Reference: https://docs.nvidia.com/cuda/cuda-binary-utilities/
+- 0.58rc: a 36 MiB texture upload was refused three times within a millisecond with ~100 MiB free
+  (largest free block 6 MiB), `VK_ERROR_OUT_OF_DEVICE_MEMORY`, GPU thread, 1929 s.
+- 0.59rc: a 4 KiB guest write needed a 2 MiB block to promote a zero page, the pool had 31 MiB free
+  in no usable piece, the 32 MiB reserve had been used 18 times, SIGSEGV "game memory exhausted",
+  GPU thread, 1467 s.
 
-## Evidence and limits
+## Changes
 
-276 distinct archived native shader streams (320,873 instructions) passed
-the existing lowerer under ASan/UBSan. Lowering acceptance does not establish
-numerical correctness. The FSEL regression compares exact bits for real
-captured instructions, execution and select predicates, negative/positive zero,
-finite values, infinities and NaNs. Build/check results and exact source/binary
-hashes are recorded in VALIDATION.json after qualification.
+1. **Waiting out a transient peak (GPU).** `MakeOrReclaim` (`headless/staging_buffers.h`) keeps asking
+   for a refused staging buffer every 50 ms for up to 1.5 s after the third refusal, running the
+   idle-buffer release and texture reclaim again every 250 ms. Before, the third refusal ended the app.
+2. **Waiting out a transient peak (guest).** `HandleGuestWriteFault` (`src/guest_memory_service.inc`):
+   when no block can be had, the slot stays as it was, the thread sleeps 5 ms and the instruction
+   repeats, for up to 3 s from the first refusal; only then does the failure count and the process
+   end. The wait holds no lock. `fault_patience_ms` is 3000.
+3. **Idle heap spaces go back to the pool** (`headless/heap_arenas.inc`, `src/memory_pages.cpp`).
+   A heap space in which nothing is alive (a block of nearly the whole space can be made only then)
+   keeps that block and returns the memory behind it; the allocator's own records at both ends stay.
+   When the heap has to grow it takes a retired space's memory back first, then commits new pieces.
+   Only done while the pool's largest free block is under 2 GiB, checked every 5 s.
+   `heap-return-off.txt` (`EDEN_NX2_HEAP_RETURN_OFF`) disables it. Threads' kept small blocks count as
+   alive, so a space with one is not idle: how much this returns in practice is what the log shows.
+4. **Heap statistics.** `EDEN_HEAP_SPACES spaces=.. retired=.. newly_retired=.. returned_mib=..
+   committed_mib=.. in=pieces:largest_mib ...` every 30 s and whenever a space is retired: for each
+   heap space its pieces and the largest block it can make (probed), `R` for a retired one.
+5. **Music removed.** A voice that loops a wave buffer for ever (`loop_count < 0`) is decoded as
+   before, so voice state and timing do not change, but its output is silenced
+   (`src/audio_core/renderer/command/data_source/decode.cpp`, layer `99zzzzzzb-music-off.diff`).
+   Ambient loops (wind, water) go with it; voices, sound effects and the launcher's UI sounds stay.
+   `EDEN_MUSIC_MUTED` logs the first and every doubling of silenced updates.
+   `/data/eden-nx2/music-on.txt` plays the music again. The classification (infinite loop = music)
+   is a rule of thumb, not proven against the game's audio engine.
 
-The 0.58rc logs contain non-finite position outputs and large projected triangle
-spans, with zero out-of-range indices in the two current runs' sampled probes.
-These findings do not establish FSEL as the cause of the visible geometry fan;
-that requires matching shader/draw evidence and a hardware comparison.
+## Verification
 
-The guest CPU is AArch64 (ARM64); the native PS5 host executable is x86-64.
-Guest speed stays at 100%. No CPU/GPU power or FPS improvement is claimed.
-The 0.58rc shared-pool OOM remains a separate unresolved issue. Its near-crash
-idle staging retention already reached zero, so increasing retention or merely
-reducing the cap is not established as a fix. This candidate retains the
-existing memory policy pending stronger allocation-lifetime evidence.
+Host checks (Linux): the heap-by-pieces harness (8 threads, checked and ThreadSanitizer) with the
+new retire/take-back cycle over a stand-in that makes a retired stretch unreadable; the staging
+retry with patience (succeeds after 8 refusals; gives up after its patience); the guest write fault
+with patience (retries while the pool is empty, fails when it is spent) and the existing OOM report
+checks. Native compilation and package checks are in VALIDATION.json.
 
-Native build/package and bit-exact component checks do not qualify hardware
-stability, image correctness or 30 FPS gameplay. Published notes must state
-whether those hardware checks have actually been performed.
-
-## Completed qualification
-
-Compiled source: `5f83316b71c78027a78c2c891bb1172fa507f4e1`.
-Native compilation/package checks, captured FSEL bit-exact regression under
-ASan/UBSan, memory-pressure regression, package isolation, capture-archive tests,
-repository hygiene and all 159 dependency-license hashes passed. All 72 installed
-files matched full raw read-back. The old app was backed up and removed first.
-A fresh PS5 00.005.059 boot loaded the game with status 0 and preserved accuracy
-settings at 100% speed. The title was then closed and the three backed-up shader
-caches cleared again. Saves and other user data were preserved. Camera stayed
-stopped. This is startup qualification; no observed controllable gameplay,
-geometry correction, sustained stability or FPS improvement is claimed.
+No hardware gameplay has been run on 0.60rc. That the changes stop the 0.58rc/0.59rc crashes, how
+much heap memory is returned, and that no wanted sound is lost are all unconfirmed until a session
+on the console shows them. A refusal that outlasts the waits still ends the session as before.

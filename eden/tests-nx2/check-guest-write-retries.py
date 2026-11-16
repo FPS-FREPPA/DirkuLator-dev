@@ -16,12 +16,14 @@ fixture=r'''
 #include <cstdio>
 #include <csignal>
 #include <sys/mman.h>
+#include <time.h>
 #include <unistd.h>
 constexpr size_t SparseSlot=2*1024*1024;
 enum {SlotZero=0,SlotOwn=1,SlotShared=2,SlotFine=3};
 struct SparseRange { std::atomic<uintptr_t> begin{0}; unsigned state=SlotZero; bool locked=false; } range;
 std::atomic<uintptr_t> probe_expected{0}; std::atomic<bool> probe_mismatch{false};
-struct { std::atomic<unsigned> faults{0},promotions{0},failures{0}; } counters;
+struct { std::atomic<unsigned> faults{0},promotions{0},failures{0},waits{0}; } counters;
+std::atomic<std::uint32_t> fault_patience_ms{0};
 bool simulate_wait=false, fail_promote=false;
 SparseRange* WriteRangeOf(uintptr_t a){return a>=range.begin && a<range.begin+SparseSlot ? &range:nullptr;}
 bool LockSlot(SparseRange& r,size_t slot,bool){assert(slot==0&&!r.locked);r.locked=true;bool waited=simulate_wait;simulate_wait=false;return waited;}
@@ -64,6 +66,17 @@ int main(int argc,char**){
  }
  range.state=SlotZero;fail_promote=true;
  assert(!HandleGuestWriteFault(p)&&range.state==SlotZero&&!range.locked);
+ // 0.60rc: with patience a refused promotion retries (the instruction repeats) until it is spent
+#ifdef PATIENCE
+ fault_patience_ms.store(60);
+ {
+  const auto begin=time(nullptr); unsigned retries=0;
+  while(HandleGuestWriteFault(p)){++retries; assert(retries<1000);}
+  assert(retries>=5 && counters.waits.load()>=5 && !range.locked && range.state==SlotZero);
+  (void)begin;
+ }
+ fault_patience_ms.store(0);
+#endif
  assert(!HandleGuestWriteFault(nullptr));
  assert(munmap(p,SparseSlot)==0);
  puts("PASS: 100 real same-address faults, no-progress rejection, waits, shared/fine and failure unlocks");
@@ -74,7 +87,7 @@ out=root/'build/guest-write-retries';out.mkdir(parents=True,exist_ok=True)
 for label,source in [('baseline',baseline),('corrected',current)]:
  p=out/(label+'.cpp');p.write_text(fixture+extract(source)+main)
  binary=out/label
- subprocess.run(['c++','-std=c++20','-O1','-g','-fsanitize=undefined',str(p),'-o',str(binary)],check=True)
+ subprocess.run(['c++','-std=c++20','-O1','-g','-fsanitize=undefined']+(['-DPATIENCE=1'] if label=='corrected' else [])+[str(p),'-o',str(binary)],check=True)
  result=subprocess.run([str(binary)])
  expected=77 if label=='baseline' else 0
  assert result.returncode==expected,(label,result.returncode,expected)

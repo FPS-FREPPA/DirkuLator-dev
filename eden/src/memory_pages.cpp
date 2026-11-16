@@ -763,6 +763,21 @@ namespace {
 std::array<FragmentedCommit::Piece, 8192> heap_commit_scratch;
 std::atomic_flag heap_commit_lock = ATOMIC_FLAG_INIT;
 constexpr std::size_t HeapCommitPage = 0x4000;
+// Every piece the heap committed (guarded by heap_commit_lock), so that memory the heap no longer
+// uses can be given back: DecommitHeapRange. An overflow only means some pieces cannot be given back.
+constexpr std::size_t HeapLedgerSize = 4096;
+std::array<FragmentedCommit::Piece, HeapLedgerSize> heap_ledger;
+std::size_t heap_ledger_count = 0;
+void LedgerAdd(std::size_t blocks) noexcept {
+    for (std::size_t i = 0; i < blocks && heap_ledger_count < HeapLedgerSize; ++i)
+        heap_ledger[heap_ledger_count++] = heap_commit_scratch[i];
+}
+void LockHeapCommit() noexcept {
+    for (unsigned spins = 0; heap_commit_lock.test_and_set(std::memory_order_acquire); ++spins) {
+        if (spins < 64) sched_yield();
+        else usleep(50);
+    }
+}
 struct HeapCommitOps {
     bool Allocate(std::size_t size, std::int64_t& physical) noexcept {
         const auto alignment = size % LargePage == 0 ? LargePage : HeapCommitPage;
@@ -808,6 +823,7 @@ bool CommitMemoryRange(void* address, std::size_t size) noexcept {
     std::size_t blocks = 0;
     const bool committed = FragmentedCommit::Commit(reinterpret_cast<std::uintptr_t>(address), size,
                                                    HeapCommitPage, heap_commit_scratch, ops, blocks);
+    if (committed) LedgerAdd(blocks);
     heap_commit_lock.clear(std::memory_order_release);
     if (!committed) return false;
     // The heap grows through here: no stdio (it may allocate).
@@ -819,6 +835,76 @@ bool CommitMemoryRange(void* address, std::size_t size) noexcept {
     return true;
 #else
     return mprotect(address, size, PROT_READ | PROT_WRITE) == 0;
+#endif
+}
+
+// Gives back the memory of the pieces the heap committed that lie wholly inside [low, high): the
+// stretches released are `holes` (neighbouring pieces joined; at most `max`), and the count is the
+// result. The address space stays reserved. A piece that only partly lies inside, and any beyond
+// `max` holes, stay. RecommitHeapHole puts memory behind a hole again (zeroed). The caller owns
+// the range: nothing may read or write it between the two.
+unsigned DecommitHeapRange(std::uintptr_t low, std::uintptr_t high, HeapHole* holes, unsigned max) noexcept {
+#ifdef PS5_NATIVE
+    unsigned count = 0;
+    LockHeapCommit();
+    HeapCommitOps ops;
+    for (std::size_t i = 0; i < heap_ledger_count;) {
+        const FragmentedCommit::Piece piece = heap_ledger[i];
+        if (piece.address < low || piece.address + piece.size > high) {
+            ++i;
+            continue;
+        }
+        unsigned at = count;
+        for (unsigned h = 0; h < count; ++h) {
+            if (holes[h].address + holes[h].size == piece.address) {
+                at = h;
+                break;
+            }
+            if (piece.address + piece.size == holes[h].address) {
+                holes[h].address = piece.address;
+                at = h;
+                break;
+            }
+        }
+        if (at == count && count == max) {
+            ++i;
+            continue;
+        }
+        ops.Rollback(piece); // unmap, keep the address space reserved, give the memory back
+        if (at == count) {
+            holes[count++] = {piece.address, piece.size};
+        } else if (holes[at].address == piece.address) {
+            holes[at].size += piece.size;
+        } else {
+            holes[at].size += piece.size;
+        }
+        heap_ledger[i] = heap_ledger[--heap_ledger_count];
+    }
+    heap_commit_lock.clear(std::memory_order_release);
+    return count;
+#else
+    if (max == 0 || high <= low || mprotect(reinterpret_cast<void*>(low), high - low, PROT_NONE) != 0) return 0;
+    holes[0] = {low, high - low};
+    return 1;
+#endif
+}
+
+bool RecommitHeapHole(const HeapHole& hole) noexcept {
+#ifdef PS5_NATIVE
+    if (hole.address == 0 || hole.size == 0 || hole.address % HeapCommitPage || hole.size % HeapCommitPage) return false;
+    LockHeapCommit();
+    HeapCommitOps ops;
+    std::size_t blocks = 0;
+    const bool committed = FragmentedCommit::Commit(hole.address, hole.size, HeapCommitPage,
+                                                   heap_commit_scratch, ops, blocks);
+    if (committed) LedgerAdd(blocks);
+    heap_commit_lock.clear(std::memory_order_release);
+    if (committed) std::memset(reinterpret_cast<void*>(hole.address), 0, hole.size);
+    return committed;
+#else
+    if (mprotect(reinterpret_cast<void*>(hole.address), hole.size, PROT_READ | PROT_WRITE) != 0) return false;
+    std::memset(reinterpret_cast<void*>(hole.address), 0, hole.size);
+    return true;
 #endif
 }
 

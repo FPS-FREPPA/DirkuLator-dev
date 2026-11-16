@@ -205,6 +205,22 @@ void eden_heap_pages_free(void *address, size_t size) { munmap(address, size); }
 '''
 
 TEST = r'''
+// 0.60rc: the stand-in for giving memory back (src/memory_pages.cpp DecommitHeapRange): the stretch
+// becomes unreadable, so a space that is used while it is given back faults.
+unsigned eden_heap_decommit(uintptr_t low, uintptr_t high, eden_heap_hole *holes, unsigned max) {
+    assert(max >= 1 && (low & 0x1fffff) == 0 && (high & 0x1fffff) == 0 && high > low);
+    assert(mprotect((void *)low, high - low, PROT_NONE) == 0);
+    atomic_fetch_sub(&committed_bytes, high - low);
+    holes[0].address = low; holes[0].size = high - low;
+    return 1;
+}
+int eden_heap_recommit(const eden_heap_hole *hole) {
+    if (mprotect((void *)hole->address, hole->size, PROT_READ | PROT_WRITE) != 0) return -1;
+    memset((void *)hole->address, 0, hole->size);
+    atomic_fetch_add(&committed_bytes, hole->size);
+    return 0;
+}
+void eden_heap_housekeeping(void);
 void *__wrap_malloc(size_t);
 void *__wrap_calloc(size_t, size_t);
 void *__wrap_realloc(void *, size_t);
@@ -377,6 +393,34 @@ int main(int argc, char **argv) {
     assert(again != NULL);
     fill(again, 1000, 3); verify(again, 1000, 3);
     __wrap_free(again);
+    if (!refuse_range) {
+        // 0.60rc: with everything freed, the spaces after the first are idle: they give their memory
+        // back (the stretch is unreadable now), keep working for what is left of them, and take
+        // the memory again before the heap grows by a new piece.
+        const size_t pieces_before = eden_heap_committed();
+        eden_heap_housekeeping();
+        const unsigned retired = atomic_load(&eden_heap_retired_count);
+        assert(retired > 0);
+        assert(atomic_load(&eden_heap_returned_bytes) > 0);
+        assert(atomic_load(&committed_bytes) + atomic_load(&eden_heap_returned_bytes) <= pieces_before);
+        unsigned char *probe = __wrap_malloc(1000);   // small leftovers and the first space still serve
+        assert(probe != NULL);
+        fill(probe, 1000, 5); verify(probe, 1000, 5);
+        __wrap_free(probe);
+        enum { FILL = 2048 };
+        static unsigned char *filled[FILL];
+        int taken = 0;
+        while (taken < FILL && (filled[taken] = __wrap_malloc((size_t)6 << 20)) != NULL) {
+            fill(filled[taken], (size_t)6 << 20, 100 + (unsigned)taken);
+            ++taken;
+            if (atomic_load(&eden_heap_retired_count) == 0) break;
+        }
+        assert(atomic_load(&eden_heap_retired_count) == 0 && atomic_load(&eden_heap_returned_bytes) == 0);
+        assert(atomic_load(&committed_bytes) == eden_heap_committed());
+        for (int i = 0; i < taken; ++i) { verify(filled[i], (size_t)6 << 20, 100 + (unsigned)i); __wrap_free(filled[i]); }
+        printf("heap return: %u spaces retired, memory taken again before the heap grew (%zu MiB of pieces)\n",
+               retired, eden_heap_committed() >> 20);
+    }
     __wrap_free(first);
     printf("%s: %lu operations on 8 threads, %u arenas, most in use at once %zu MiB, %zu MiB of pieces after the threads, "
            "%zu MiB when full (%d blocks of 6 MiB)\n",

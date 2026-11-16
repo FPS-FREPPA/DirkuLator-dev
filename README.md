@@ -31,15 +31,16 @@ hardware. This is early development, with substantial work remaining.
    dependencies, build instructions, licenses, and honest results so others can
    fork, build, investigate, and contribute.
 
-## Development candidate: 0.59rc
+## Development candidate: 0.60rc
 
-Ocarina's floating-point select translation now preserves the captured source
-operand negation and absolute-value modifiers. NVIDIA's SM86 disassembler
-confirms sign-selection forms that the preceding title policy treated as
-identical operands. See [BUILD-NOTES.md](BUILD-NOTES.md) for exact evidence,
-qualification and limits. Title PPSA99862, content version 00.005.059.
+The shared memory pool no longer ends a session on a transient peak: a refused GPU staging
+buffer or guest page is asked for again for up to 1.5 s / 3 s, idle CPU heap spaces give their
+memory back while the pool is short, the heap reports what it holds (EDEN_HEAP_SPACES), and
+the game's music (voices that loop a wave buffer for ever) is silenced; music-on.txt plays it
+again. See [BUILD-NOTES.md](BUILD-NOTES.md) for the evidence, qualification and limits.
+Title PPSA99862, content version 00.005.060.
 
-Hardware geometry, OOM stability and sustained 30 FPS remain unqualified.
+Hardware stability, geometry and sustained 30 FPS remain unqualified.
 
 ## Downloads
 

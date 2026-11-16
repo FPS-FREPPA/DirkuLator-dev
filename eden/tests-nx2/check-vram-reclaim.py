@@ -124,6 +124,26 @@ int main() {
     try { Run(always, steps); } catch (const Refusal&) { thrown = true; }
     assert(thrown && steps == "release reclaim " && always.made == 0);
     steps.clear();
+    {   // 0.60rc: patience keeps asking after the third refusal, and gives up when it is spent
+        Allocator burst{8};
+        std::string waited;
+        auto got = MakeOrReclaim<Refusal>([&] { return burst.Make(); },
+                                          [](const Refusal& refused) { return refused.result == kOutOfDeviceMemory; },
+                                          [&] { waited += "release "; }, [&] { waited += "reclaim "; },
+                                          std::chrono::milliseconds(2000));
+        assert(got == "buffer" && burst.made == 1);
+        assert(waited.rfind("release reclaim ", 0) == 0);
+        Allocator never{1000000};
+        bool gave_up = false;
+        const auto begin = std::chrono::steady_clock::now();
+        try {
+            MakeOrReclaim<Refusal>([&] { return never.Make(); },
+                                   [](const Refusal& refused) { return refused.result == kOutOfDeviceMemory; },
+                                   [] {}, [] {}, std::chrono::milliseconds(200));
+        } catch (const Refusal&) { gave_up = true; }
+        const auto spent = std::chrono::steady_clock::now() - begin;
+        assert(gave_up && spent >= std::chrono::milliseconds(200) && spent < std::chrono::milliseconds(1500));
+    }
     Allocator lost{1, 0, -4};  // another error: no retry
     thrown = false;
     try { Run(lost, steps); } catch (const Refusal&) { thrown = true; }

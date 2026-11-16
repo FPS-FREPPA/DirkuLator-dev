@@ -690,7 +690,7 @@ adapt('src/video_core/renderer_vulkan/vk_staging_buffer_pool.cpp', 'vulkan_stagi
      '                     before < 0 || pool_free < 0 ? -1ll : static_cast<long long>((pool_free - before) >> 20),\n'
      '                     pool_free < 0 ? -1ll : pool_free >> 20,\n'
      '                     largest == static_cast<std::size_t>(-1) ? -1ll : static_cast<long long>(largest >> 20));\n'
-     '        });\n'
+     '        }, std::chrono::milliseconds(1500));\n'
      '    // A large buffer smaller than the power of two: the 1st, 2nd, 4th, 8th ... in the log.\n'
      '    if (exact && made >= (VkDeviceSize{64} << 20) && made < (VkDeviceSize{1} << log2_size)) {\n'
      '        static std::atomic<unsigned long long> large{0};\n'

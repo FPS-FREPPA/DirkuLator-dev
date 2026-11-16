@@ -407,6 +407,14 @@ int main(int argc, char** argv) {
         setenv("EDEN_NX2_NO_HANDLE_ZERO", "1", 1);
         std::fprintf(stderr, "EDEN_NX2_NO_HANDLE_ZERO on\n");
     }
+    // /data/eden-nx2/music-on.txt: the game's music plays again. Since 0.60rc a voice that loops a
+    // wave buffer for ever is decoded but silenced (decode.cpp, layer 99zzzzzzb).
+    if (std::ifstream(std::string{Eden::kDataDir} + "/music-on.txt").good()) {
+        setenv("EDEN_NX2_MUSIC_ON", "1", 1);
+        std::fprintf(stderr, "EDEN_NX2_MUSIC_ON on\n");
+    } else {
+        std::fprintf(stderr, "EDEN_MUSIC off (music-on.txt plays it)\n");
+    }
     // /data/eden-nx2/unified-memory.txt: images, device-local and upload buffers share the device
     // local, host visible memory types (vulkan_memory_allocator.cpp, layer 99zzzzi), so one kind of
     // allocation can use the room another left inside the allocator's blocks.
