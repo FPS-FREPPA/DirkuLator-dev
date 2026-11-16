@@ -31,14 +31,12 @@ hardware. This is early development, with substantial work remaining.
    dependencies, build instructions, licenses, and honest results so others can
    fork, build, investigate, and contribute.
 
-## Development candidate: 0.60rc
+## Development candidate: 0.61rc
 
-The shared memory pool no longer ends a session on a transient peak: a refused GPU staging
-buffer or guest page is asked for again for up to 1.5 s / 3 s, idle CPU heap spaces give their
-memory back while the pool is short, the heap reports what it holds (EDEN_HEAP_SPACES), and
-the game's music (voices that loop a wave buffer for ever) is silenced; music-on.txt plays it
-again. See [BUILD-NOTES.md](BUILD-NOTES.md) for the evidence, qualification and limits.
-Title PPSA99862, content version 00.005.060.
+0.60rc's first console session ended on the JIT code cache (no 16 MiB block in a pool cut into
+pieces); 0.61rc takes it in blocks down to 2 MiB and waits for the pool, and gives idle heap
+memory back from the middle of a piece (0.60rc gave back none). See [BUILD-NOTES.md](BUILD-NOTES.md).
+Title PPSA99862, content version 00.005.061.
 
 Hardware stability, geometry and sustained 30 FPS remain unqualified.
 

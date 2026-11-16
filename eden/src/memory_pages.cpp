@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <fcntl.h>
 #include <limits>
 #include <mutex>
@@ -768,6 +769,7 @@ constexpr std::size_t HeapCommitPage = 0x4000;
 constexpr std::size_t HeapLedgerSize = 4096;
 std::array<FragmentedCommit::Piece, HeapLedgerSize> heap_ledger;
 std::size_t heap_ledger_count = 0;
+bool heap_split_refused = false; // the console would not give back part of a piece
 void LedgerAdd(std::size_t blocks) noexcept {
     for (std::size_t i = 0; i < blocks && heap_ledger_count < HeapLedgerSize; ++i)
         heap_ledger[heap_ledger_count++] = heap_commit_scratch[i];
@@ -848,37 +850,71 @@ unsigned DecommitHeapRange(std::uintptr_t low, std::uintptr_t high, HeapHole* ho
     unsigned count = 0;
     LockHeapCommit();
     HeapCommitOps ops;
-    for (std::size_t i = 0; i < heap_ledger_count;) {
+    // 0.61rc: a piece is split at the edges of [low, high): the heap commits a 32 MiB piece as one
+    // block, and in 0.60rc only pieces wholly inside the range were given back, so none were.
+    // The stretch of the piece inside the range is released (the rest stays, as two pieces).
+    for (std::size_t i = 0; i < heap_ledger_count && !heap_split_refused;) {
         const FragmentedCommit::Piece piece = heap_ledger[i];
-        if (piece.address < low || piece.address + piece.size > high) {
+        const std::uintptr_t from = (std::max)(piece.address, low);
+        const std::uintptr_t to = (std::min)(piece.address + piece.size, high);
+        if (to <= from || (from - piece.address) % HeapCommitPage || (to - from) % HeapCommitPage) {
             ++i;
             continue;
         }
         unsigned at = count;
         for (unsigned h = 0; h < count; ++h) {
-            if (holes[h].address + holes[h].size == piece.address) {
+            if (holes[h].address + holes[h].size == from) {
                 at = h;
                 break;
             }
-            if (piece.address + piece.size == holes[h].address) {
-                holes[h].address = piece.address;
+            if (to == holes[h].address) {
                 at = h;
                 break;
             }
         }
-        if (at == count && count == max) {
+        // A piece that splits in two needs a free entry for the second part.
+        if ((at == count && count == max) || heap_ledger_count + 1 >= HeapLedgerSize) {
             ++i;
             continue;
         }
-        ops.Rollback(piece); // unmap, keep the address space reserved, give the memory back
-        if (at == count) {
-            holes[count++] = {piece.address, piece.size};
-        } else if (holes[at].address == piece.address) {
-            holes[at].size += piece.size;
-        } else {
-            holes[at].size += piece.size;
+        const std::int64_t physical = piece.physical + static_cast<std::int64_t>(from - piece.address);
+        void* const where = reinterpret_cast<void*>(from);
+        if (munmap(where, to - from) != 0) std::abort();
+        void* reserved = where; // the address space stays reserved, as when a commit is rolled back
+        if (sceKernelReserveVirtualRange(&reserved, to - from, MAP_FIXED, HeapCommitPage) != 0 || reserved != where)
+            std::abort();
+        if (sceKernelReleaseDirectMemory(physical, to - from) != 0) {
+            // The console does not give back a part of an allocation: put the memory back as it was
+            // and stop (nothing is given back by this path).
+            void* again = where;
+            const auto alignment = (from % LargePage == 0 && physical % LargePage == 0 && (to - from) % LargePage == 0)
+                                       ? LargePage : HeapCommitPage;
+            if (sceKernelMapDirectMemory(&again, to - from, PROT_READ | PROT_WRITE, MAP_FIXED, physical, alignment) != 0 ||
+                again != where)
+                std::abort();
+            heap_split_refused = true;
+            break;
         }
-        heap_ledger[i] = heap_ledger[--heap_ledger_count];
+        if (at == count) {
+            holes[count++] = {from, to - from};
+        } else if (to == holes[at].address) {
+            holes[at].address = from;
+            holes[at].size += to - from;
+        } else {
+            holes[at].size += to - from;
+        }
+        // The piece becomes what is left of it on each side.
+        const std::uintptr_t end = piece.address + piece.size;
+        if (from > piece.address && to < end) {
+            heap_ledger[i] = {piece.address, from - piece.address, piece.physical};
+            heap_ledger[heap_ledger_count++] = {to, end - to, piece.physical + static_cast<std::int64_t>(to - piece.address)};
+        } else if (from > piece.address) {
+            heap_ledger[i] = {piece.address, from - piece.address, piece.physical};
+        } else if (to < end) {
+            heap_ledger[i] = {to, end - to, piece.physical + static_cast<std::int64_t>(to - piece.address)};
+        } else {
+            heap_ledger[i] = heap_ledger[--heap_ledger_count];
+        }
     }
     heap_commit_lock.clear(std::memory_order_release);
     return count;
@@ -924,39 +960,51 @@ struct CodeRange {
     std::uintptr_t writable = 0;
     std::size_t span = 0;
     std::atomic<std::size_t> committed{0};
-    std::int64_t physical[CodeSteps] = {};
+    // 0.61rc: a step is taken as one 16 MiB block when the pool has one, else as smaller blocks (2 MiB
+    // at least), each its own piece: 0.60rc ended on "the console has no memory for its next part"
+    // with 86 MiB free in blocks of 4-9 MiB.
+    std::int64_t physical[CodeSteps * 8] = {};
+    std::uint32_t piece_bytes[CodeSteps * 8] = {};
+    std::size_t pieces = 0;
 };
 std::array<CodeRange, 16> code_ranges;
 std::mutex code_mutex;
 std::atomic<std::size_t> code_reserved{0}, code_committed{0};
 
-// Memory behind the next step of both ranges. code_mutex is held.
-bool CommitCodeStep(CodeRange& range, std::size_t offset) {
+// Memory behind `block` bytes (a multiple of LargePage) of both ranges from `offset`. code_mutex is
+// held. False when the pool has no block of that size (nothing is changed then).
+bool CommitCodeBlock(CodeRange& range, std::size_t offset, std::size_t block) {
     void* const writable = reinterpret_cast<void*>(range.writable + offset);
     void* const executable = reinterpret_cast<void*>(range.executable.load(std::memory_order_relaxed) + offset);
 #ifdef PS5_NATIVE
     std::int64_t physical = -1;
-    if (eden_direct_low(CodeStep, LargePage, 12, &physical) != 0) return false;
-    // A step that fails half way stays as it is: the caller has no cache to go on with.
+    if (eden_direct_low(block, LargePage, 12, &physical) != 0) return false;
+    // A block that fails half way stays as it is: the caller has no cache to go on with.
     void* at = writable;
-    if (sceKernelMapDirectMemory(&at, CodeStep, PROT_READ | PROT_WRITE, MAP_FIXED, physical, LargePage) != 0 ||
+    if (sceKernelMapDirectMemory(&at, block, PROT_READ | PROT_WRITE, MAP_FIXED, physical, LargePage) != 0 ||
         at != writable)
         return false;
-    std::memset(writable, 0, CodeStep);
+    std::memset(writable, 0, block);
     at = executable;
-    if (sceKernelMapDirectMemory(&at, CodeStep, PROT_READ, MAP_FIXED, physical, LargePage) != 0 || at != executable)
+    if (sceKernelMapDirectMemory(&at, block, PROT_READ, MAP_FIXED, physical, LargePage) != 0 || at != executable)
         return false;
     // As MapExecutableAlias: the mapping call refuses EXEC on some versions.
-    if (mprotect(executable, CodeStep, PROT_READ | PROT_EXEC) != 0) return false;
-    range.physical[offset / CodeStep] = physical;
+    if (mprotect(executable, block, PROT_READ | PROT_EXEC) != 0) return false;
+    range.physical[range.pieces] = physical;
+    range.piece_bytes[range.pieces] = static_cast<std::uint32_t>(block);
+    ++range.pieces;
 #else
-    if (mprotect(writable, CodeStep, PROT_READ | PROT_WRITE) != 0 ||
-        mprotect(executable, CodeStep, PROT_READ | PROT_EXEC) != 0)
+    if (mprotect(writable, block, PROT_READ | PROT_WRITE) != 0 ||
+        mprotect(executable, block, PROT_READ | PROT_EXEC) != 0)
         return false;
 #endif
-    code_committed.fetch_add(CodeStep, std::memory_order_relaxed);
+    code_committed.fetch_add(block, std::memory_order_relaxed);
     return true;
 }
+
+// How long (ms) the JIT waits for the pool when not even 2 MiB can be had: a loading burst's blocks
+// come back within 100 ms. 0: none.
+constexpr unsigned CodePatienceMs = 3000;
 } // namespace
 
 // Address space for a code cache of `size` bytes: returns the range to write through and sets
@@ -1021,9 +1069,25 @@ bool CommitCodeRange(const void* executable, std::size_t bytes) noexcept {
         if (bytes <= range.committed.load(std::memory_order_acquire)) return true;
         const std::lock_guard lock{code_mutex};
         std::size_t committed = range.committed.load(std::memory_order_relaxed);
+        unsigned waited_ms = 0;
         while (committed < bytes) {
-            if (!CommitCodeStep(range, committed)) return false;
-            committed += CodeStep;
+            // The step as one block; with none that large free, halves of it down to 2 MiB.
+            bool made = false;
+            for (std::size_t block = (std::min)(CodeStep, range.span - committed);; block = (std::max)(LargePage, block / 2 / LargePage * LargePage)) {
+                if (CommitCodeBlock(range, committed, block)) {
+                    committed += block;
+                    made = true;
+                    break;
+                }
+                if (block == LargePage) break;
+            }
+            if (!made) {
+                if (waited_ms >= CodePatienceMs) return false;
+                timespec nap{0, 5 * 1000 * 1000};
+                nanosleep(&nap, nullptr);
+                waited_ms += 5;
+                continue;
+            }
             range.committed.store(committed, std::memory_order_release);
         }
         char line[112];
@@ -1046,9 +1110,10 @@ bool FreeCodeRange(void* executable) noexcept {
         if (munmap(reinterpret_cast<void*>(range.writable), range.span) != 0 || munmap(executable, range.span) != 0)
             std::abort();
 #ifdef PS5_NATIVE
-        for (std::size_t step = 0; step < committed / CodeStep; ++step)
-            if (sceKernelReleaseDirectMemory(range.physical[step], CodeStep) != 0) std::abort();
+        for (std::size_t piece = 0; piece < range.pieces; ++piece)
+            if (sceKernelReleaseDirectMemory(range.physical[piece], range.piece_bytes[piece]) != 0) std::abort();
 #endif
+        range.pieces = 0;
         code_reserved.fetch_sub(range.span, std::memory_order_relaxed);
         code_committed.fetch_sub(committed, std::memory_order_relaxed);
         range.committed.store(0, std::memory_order_relaxed);

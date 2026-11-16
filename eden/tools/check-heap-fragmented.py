@@ -45,7 +45,7 @@ std::mutex physical_lock;
 std::array<bool, Pool / Page> used;
 std::size_t held = 0, virtual_bytes = 0, hole = 1ULL << 20, available = Pool;
 unsigned map_calls = 0, map_fail = 0;
-bool reserve_fail = false, direct_ok = false;
+bool reserve_fail = false, direct_ok = false, refuse_partial_release = false;
 int backing_fd;
 std::atomic<unsigned> direct_frees{0};
 int TestMunmap(void* at, std::size_t size) {
@@ -75,6 +75,7 @@ extern "C" int eden_direct_high(std::size_t size, std::size_t alignment, int typ
 }
 extern "C" int sceKernelReleaseDirectMemory(std::int64_t physical, std::size_t size) {
     std::lock_guard lock(physical_lock);
+    if (refuse_partial_release) return -1;
     assert(physical >= 0 && std::size_t(physical) + size <= Pool && size <= held);
     for (std::size_t i = std::size_t(physical) / Page; i < (std::size_t(physical) + size) / Page; ++i) {
         assert(used[i]); used[i] = false;
@@ -135,7 +136,9 @@ void Note(const char*) noexcept {}
 OPS
 #undef munmap
 }
+#define munmap TestMunmap
 COMMIT
+#undef munmap
 }
 void clean() { assert(held == 0 && virtual_bytes == 0); assert(std::none_of(used.begin(), used.end(), [](bool x){return x;})); }
 int main() {
@@ -193,8 +196,44 @@ int main() {
     assert(!Common::CommitMemoryRange(range, 32ULL << 20));
     assert(held == 0 && virtual_bytes == (32ULL << 20));
     assert(TestMunmap(range, 32ULL << 20) == 0); clean();
+    // 0.61rc: memory the heap no longer uses goes back to the pool even from the middle of a piece
+    // committed as one block (0.60rc gave back nothing: no piece lay wholly inside the range).
+    {
+        hole = Pool; available = Pool; used.fill(false); held = 0; Common::heap_ledger_count = 0; // earlier checks gave their memory back by hand
+        const std::size_t MiB = 1ULL << 20;
+        auto* base = static_cast<unsigned char*>(Common::ReserveMemoryRange(32 * MiB));
+        assert(base && Common::CommitMemoryRange(base, 32 * MiB) && held == 32 * MiB);
+        std::memset(base, 0x5a, 2 * MiB);
+        std::memset(base + 30 * MiB, 0x6b, 2 * MiB);
+        Common::HeapHole holes[4];
+        unsigned n = Common::DecommitHeapRange(std::uintptr_t(base) + 2 * MiB, std::uintptr_t(base) + 30 * MiB, holes, 4);
+        assert(n == 1 && holes[0].address == std::uintptr_t(base) + 2 * MiB && holes[0].size == 28 * MiB);
+        assert(held == 4 * MiB && virtual_bytes >= 28 * MiB);
+        for (std::size_t i = 0; i < 2 * MiB; i += Page) assert(base[i] == 0x5a && base[30 * MiB + i] == 0x6b);
+        assert(Common::RecommitHeapHole(holes[0]) && held == 32 * MiB);
+        for (std::size_t i = 2 * MiB; i < 30 * MiB; i += Page) assert(base[i] == 0);
+        for (std::size_t i = 0; i < 2 * MiB; i += Page) assert(base[i] == 0x5a && base[30 * MiB + i] == 0x6b);
+        // The three pieces it became are given back as one stretch, and taken again.
+        n = Common::DecommitHeapRange(std::uintptr_t(base), std::uintptr_t(base) + 32 * MiB, holes, 4);
+        assert(n == 1 && holes[0].address == std::uintptr_t(base) && holes[0].size == 32 * MiB && held == 0);
+        assert(Common::RecommitHeapHole(holes[0]) && held == 32 * MiB);
+        // Outside the range, and a range of nothing, give nothing back.
+        assert(Common::DecommitHeapRange(std::uintptr_t(base) + 64 * MiB, std::uintptr_t(base) + 96 * MiB, holes, 4) == 0);
+        assert(Common::DecommitHeapRange(std::uintptr_t(base) + 4 * MiB, std::uintptr_t(base) + 4 * MiB, holes, 4) == 0);
+        // The console refuses to give back a part of a piece: nothing changes, and it is not asked again.
+        std::memset(base, 0x5a, 2 * MiB);   // the whole range was taken again, zeroed
+        refuse_partial_release = true;
+        assert(Common::DecommitHeapRange(std::uintptr_t(base) + 2 * MiB, std::uintptr_t(base) + 30 * MiB, holes, 4) == 0);
+        refuse_partial_release = false;
+        assert(held == 32 * MiB);
+        for (std::size_t i = 0; i < 2 * MiB; i += Page) assert(base[i] == 0x5a);
+        base[3 * MiB] = 1; assert(base[3 * MiB] == 1);   // still mapped and writable
+        assert(Common::DecommitHeapRange(std::uintptr_t(base) + 2 * MiB, std::uintptr_t(base) + 30 * MiB, holes, 4) == 0);
+        assert(TestMunmap(base, 32 * MiB) == 0);
+        used.fill(false); held = 0; clean();
+    }
     close(backing_fd);
-    std::puts("PASS production CPU heap: 64 MiB in 1 MiB holes, zeroing, alignment, release/reuse, failure rollback, ledger bounds, eight threads, permanent growth");
+    std::puts("PASS production CPU heap: 64 MiB in 1 MiB holes, zeroing, alignment, release/reuse, failure rollback, ledger bounds, eight threads, permanent growth, partial give-back of a piece");
 }
 '''.replace('OPS', ops).replace('COMMIT', commit)
 with tempfile.TemporaryDirectory(prefix='eden-heap-fragmented-') as work:

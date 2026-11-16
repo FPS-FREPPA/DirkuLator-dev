@@ -1,56 +1,51 @@
-# DirkuLator 0.60rc
+# DirkuLator 0.61rc
 
-Native PS5 title PPSA99862, content version 00.005.060, development channel.
+Native PS5 title PPSA99862, content version 00.005.061, development channel.
 
-## Why
+## What 0.60rc showed on the console
 
-Every 0.58rc and 0.59rc session ended by running out of the 12,416 MiB shared pool, not by a leak.
-From about five minutes in the guest held ~5.8 GiB, graphics ~2.7 GiB, the CPU heap 1.7 GiB (never
-given back: it had grown while shaders compiled in the first minutes) and large CPU blocks ~0.8 GiB;
-total free sat near 250 MiB for 15+ minutes. A loading burst (60-140 MiB of staging blocks allocated
-and let go again within 100 ms) then found the pool empty:
+One session (New Game, intro cutscenes, control of Link, 12-15 FPS in the house) ended 1030 s after
+start, 11 s after Link opened the door of his house. The crash report is not a memory-pool failure of
+the kind 0.58rc/0.59rc ended on:
 
-- 0.58rc: a 36 MiB texture upload was refused three times within a millisecond with ~100 MiB free
-  (largest free block 6 MiB), `VK_ERROR_OUT_OF_DEVICE_MEMORY`, GPU thread, 1929 s.
-- 0.59rc: a 4 KiB guest write needed a 2 MiB block to promote a zero page, the pool had 31 MiB free
-  in no usable piece, the 32 MiB reserve had been used 18 times, SIGSEGV "game memory exhausted",
-  GPU thread, 1467 s.
+    JIT code cache: the console has no memory for its next part
+    SIGABRT on CPUCore_4, pool: 86 MiB free, largest free block 4-9 MiB
+
+The JIT took each 16 MiB step of its code cache as one contiguous direct-memory block. With the pool
+cut into pieces of 2-9 MiB (86-94 MiB free in total) no block that large existed and the game's first
+translation after the door aborted the app. 0.60rc's retries covered staging buffers and guest
+pages, not this path. In the same session:
+
+- `EDEN_HEAP_SPACES` worked and found the waste: of 54 heap spaces (1728 MiB, never given back),
+  15 or more were wholly idle at the end (the largest block a space could make was 31 MiB of its
+  32 MiB), roughly 400-500 MiB. 0.60rc's heap return retired none: it gave back only pieces lying
+  wholly inside the idle stretch, and the heap commits a 32 MiB piece as one block, so no piece did.
+- The music mute ran (`EDEN_MUSIC_MUTED` logged); whether what was muted is the game's music was
+  not checked by ear.
+- The rendering faults of 0.58rc/0.59rc remained (white wash-out, shard slabs and hard rectangles in
+  the cutscenes and the house). Nothing in 0.60rc or 0.61rc changes shaders or drawing.
 
 ## Changes
 
-1. **Waiting out a transient peak (GPU).** `MakeOrReclaim` (`headless/staging_buffers.h`) keeps asking
-   for a refused staging buffer every 50 ms for up to 1.5 s after the third refusal, running the
-   idle-buffer release and texture reclaim again every 250 ms. Before, the third refusal ended the app.
-2. **Waiting out a transient peak (guest).** `HandleGuestWriteFault` (`src/guest_memory_service.inc`):
-   when no block can be had, the slot stays as it was, the thread sleeps 5 ms and the instruction
-   repeats, for up to 3 s from the first refusal; only then does the failure count and the process
-   end. The wait holds no lock. `fault_patience_ms` is 3000.
-3. **Idle heap spaces go back to the pool** (`headless/heap_arenas.inc`, `src/memory_pages.cpp`).
-   A heap space in which nothing is alive (a block of nearly the whole space can be made only then)
-   keeps that block and returns the memory behind it; the allocator's own records at both ends stay.
-   When the heap has to grow it takes a retired space's memory back first, then commits new pieces.
-   Only done while the pool's largest free block is under 2 GiB, checked every 5 s.
-   `heap-return-off.txt` (`EDEN_NX2_HEAP_RETURN_OFF`) disables it. Threads' kept small blocks count as
-   alive, so a space with one is not idle: how much this returns in practice is what the log shows.
-4. **Heap statistics.** `EDEN_HEAP_SPACES spaces=.. retired=.. newly_retired=.. returned_mib=..
-   committed_mib=.. in=pieces:largest_mib ...` every 30 s and whenever a space is retired: for each
-   heap space its pieces and the largest block it can make (probed), `R` for a retired one.
-5. **Music removed.** A voice that loops a wave buffer for ever (`loop_count < 0`) is decoded as
-   before, so voice state and timing do not change, but its output is silenced
-   (`src/audio_core/renderer/command/data_source/decode.cpp`, layer `99zzzzzzb-music-off.diff`).
-   Ambient loops (wind, water) go with it; voices, sound effects and the launcher's UI sounds stay.
-   `EDEN_MUSIC_MUTED` logs the first and every doubling of silenced updates.
-   `/data/eden-nx2/music-on.txt` plays the music again. The classification (infinite loop = music)
-   is a rule of thumb, not proven against the game's audio engine.
+1. **JIT code cache in smaller blocks** (`src/memory_pages.cpp`). A step is asked for as one 16 MiB
+   block as before; when the pool has none, as 8, 4 and 2 MiB blocks, each its own piece mapped
+   into both views. When not even 2 MiB can be had the JIT waits for the pool, 5 ms at a time, up
+   to 3 s (a loading burst's blocks come back within 100 ms), before the existing abort.
+2. **Heap return splits pieces** (`DecommitHeapRange`). The part of a committed piece inside the
+   idle stretch is released and the piece becomes what is left on each side; `RecommitHeapHole` takes
+   the memory again when the heap grows. If the console refuses to release part of an allocation,
+   the memory is mapped back as it was and the path stops for the session (nothing is lost).
+3. Everything in 0.60rc is kept: staging retry (1.5 s), guest write retry (3 s), `EDEN_HEAP_SPACES`,
+   `heap-return-off.txt`, music mute (`music-on.txt`).
 
 ## Verification
 
-Host checks (Linux): the heap-by-pieces harness (8 threads, checked and ThreadSanitizer) with the
-new retire/take-back cycle over a stand-in that makes a retired stretch unreadable; the staging
-retry with patience (succeeds after 8 refusals; gives up after its patience); the guest write fault
-with patience (retries while the pool is empty, fails when it is spent) and the existing OOM report
-checks. Native compilation and package checks are in VALIDATION.json.
+Host checks on Linux: the CPU-heap page backend with a stand-in for the console's physical memory
+(a piece committed as one block, a stretch from its middle released, the remains intact, the stretch
+taken again zeroed, three pieces given back as one stretch, a refusal leaving everything as it was)
+under ASan/UBSan and ThreadSanitizer; the heap-by-pieces harness with give-back; the staging retry
+and guest write retry checks. Native build, package and isolation checks are in VALIDATION.json.
 
-No hardware gameplay has been run on 0.60rc. That the changes stop the 0.58rc/0.59rc crashes, how
-much heap memory is returned, and that no wanted sound is lost are all unconfirmed until a session
-on the console shows them. A refusal that outlasts the waits still ends the session as before.
+Not verified: that the console accepts the release of part of an allocation (the path falls back if
+not), that the JIT's smaller blocks run translated code correctly on the console, and that these
+changes keep a session alive past the 1030 s of 0.60rc. No 0.61rc gameplay had run when this was written.
