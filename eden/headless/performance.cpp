@@ -760,18 +760,30 @@ void ReportSessionMemory(const char* phase, unsigned session) {
     long long total = 0, free_bytes = -1;
     std::size_t largest = 0;
     unsigned regions = 0;
+    // 0.62rc: the free memory by the size of its runs. The GPU takes memory in pieces of 2 MiB at
+    // least, so free runs under 2 MiB ("crumbs") are free for the CPU only: 0.61rc ended on a 10 MiB
+    // buffer with 102 MiB free and a largest free block of 3 MiB.
+    long long free_usable = 0, free_crumbs = 0;
+    unsigned free_runs = 0;
 #ifdef PS5_NATIVE
     total = sceKernelGetDirectMemorySize();
     if (total > 0) {
         std::int64_t start = 0, taken = 0, offset = 0;
         (void)sceKernelAvailableDirectMemorySize(0, total, 0x4000, &start, &largest);
         DirectMemoryRegion region{};
+        const auto run = [&](std::int64_t bytes) {
+            if (bytes <= 0) return;
+            ++free_runs;
+            (bytes >= (std::int64_t{2} << 20) ? free_usable : free_crumbs) += bytes;
+        };
         while (offset < total && regions < 8192 &&
                sceKernelDirectMemoryQuery(offset, 1, &region, sizeof(region)) == 0 && region.end > offset) {
+            run(region.start - offset);
             taken += region.end - region.start;
             offset = region.end;
             ++regions;
         }
+        run(total - offset);
         if (regions != 0) free_bytes = total - taken;
     }
 #endif
@@ -785,11 +797,12 @@ void ReportSessionMemory(const char* phase, unsigned session) {
     std::size_t guest_span = 0, guest_held = 0;
     ::Common::GuestMemoryUsage(&guest_span, &guest_held);
     std::printf("EDEN_SESSION_MEMORY phase=%s session=%u total=%lld free=%lld largest_free=%zu regions=%u "
-                "heap_pieces=%zu heap_large=%zu large_blocks=%u tables=%zu gpu_bytes=%llu t_ms=%ld guest_held=%zu\n",
+                "heap_pieces=%zu heap_large=%zu large_blocks=%u tables=%zu gpu_bytes=%llu t_ms=%ld guest_held=%zu "
+                "free_runs=%u free_usable=%lld free_crumbs=%lld\n",
                 phase, session, total, free_bytes, largest, regions,
                 eden_heap_committed ? eden_heap_committed() : std::size_t{0}, large, large_blocks, table_held,
                 static_cast<unsigned long long>(eden_vulkan_memory_bytes ? eden_vulkan_memory_bytes() : 0), t_ms,
-                guest_held);
+                guest_held, free_runs, free_usable, free_crumbs);
     // 041: the app's own direct memory (every allocation through src/direct_memory.c) against what
     // the pool has given out: the difference is held by callers outside the app's link.
     if (eden_direct_events_held) {

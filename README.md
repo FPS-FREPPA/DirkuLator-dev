@@ -31,12 +31,12 @@ hardware. This is early development, with substantial work remaining.
    dependencies, build instructions, licenses, and honest results so others can
    fork, build, investigate, and contribute.
 
-## Development candidate: 0.61rc
+## Development candidate: 0.62rc
 
-0.60rc's first console session ended on the JIT code cache (no 16 MiB block in a pool cut into
-pieces); 0.61rc takes it in blocks down to 2 MiB and waits for the pool, and gives idle heap
-memory back from the middle of a piece (0.60rc gave back none). See [BUILD-NOTES.md](BUILD-NOTES.md).
-Title PPSA99862, content version 00.005.061.
+0.61rc's console session ended on a buffer the allocator refused with 102 MiB of the pool free
+but no free run over 3 MiB. 0.62rc waits for the pool in the allocator too, packs blocks under
+2 MiB together at the top of the pool so the GPU keeps long free runs, and reports the free
+memory by run size. See [BUILD-NOTES.md](BUILD-NOTES.md). Title PPSA99862, content version 00.005.062.
 
 Hardware stability, geometry and sustained 30 FPS remain unqualified.
 

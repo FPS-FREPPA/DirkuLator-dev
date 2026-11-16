@@ -30,6 +30,9 @@
 #include <thread>
 
 namespace Eden::StagingBuffers {
+// Non-zero while MakeOrReclaim runs on this thread: it waits for the pool itself, so the allocator
+// (vulkan_memory_allocator.cpp, tools/prepare-vulkan-port.py) does not wait inside each of its asks.
+inline thread_local int in_make_or_reclaim = 0;
 // DirkuLator 0.5.3: 4 MiB, was 16 MiB. 0.5.2 was refused a 12 MiB + 48 upload made as 16 MiB
 // (12 MiB largest free block); exact it is 13 MiB. Smaller uploads keep their power of two (reuse).
 inline constexpr std::uint64_t kExactAbove = std::uint64_t{4} << 20;
@@ -107,6 +110,10 @@ auto MakeOrReclaim(Make&& make, Refused&& refused, Release&& release, Reclaim&& 
     using Clock = std::chrono::steady_clock;
     Clock::time_point waiting_since{};
     unsigned waits = 0;
+    struct Nested {
+        Nested() { ++in_make_or_reclaim; }
+        ~Nested() { --in_make_or_reclaim; }
+    } nested;
     for (int refusals = 0;; ++refusals) {
         try {
             return make();

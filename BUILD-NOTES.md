@@ -1,51 +1,64 @@
-# DirkuLator 0.61rc
+# DirkuLator 0.62rc
 
-Native PS5 title PPSA99862, content version 00.005.061, development channel.
+Native PS5 title PPSA99862, content version 00.005.062, development channel.
 
-## What 0.60rc showed on the console
+## What 0.61rc showed on the console
 
-One session (New Game, intro cutscenes, control of Link, 12-15 FPS in the house) ended 1030 s after
-start, 11 s after Link opened the door of his house. The crash report is not a memory-pool failure of
-the kind 0.58rc/0.59rc ended on:
+One session: the latest autosave (Kokiri Forest) loaded, Link walked to the door of his house and
+opened it, the forest cutscenes with Saria played, and the app ran 1174 s. That is past the 1030 s at
+which 0.60rc aborted (its JIT code cache could not get a 16 MiB block), and the JIT did not fail
+again. The session ended on the next scene change, right after A was pressed to move Saria's
+dialogue on (about 3 minutes after the door):
 
-    JIT code cache: the console has no memory for its next part
-    SIGABRT on CPUCore_4, pool: 86 MiB free, largest free block 4-9 MiB
+    VK_ERROR_OUT_OF_DEVICE_MEMORY, GPU thread
+    buffer of 10289152 bytes, usage 0xbff: refused, and refused outside the allocator's budget
+    the pool has 102 MiB free, its largest free block is 3 MiB;
+    the allocator holds 3086 MiB in blocks, 2803 MiB of it in use
 
-The JIT took each 16 MiB step of its code cache as one contiguous direct-memory block. With the pool
-cut into pieces of 2-9 MiB (86-94 MiB free in total) no block that large existed and the game's first
-translation after the door aborted the app. 0.60rc's retries covered staging buffers and guest
-pages, not this path. In the same session:
+Findings behind 0.62rc:
 
-- `EDEN_HEAP_SPACES` worked and found the waste: of 54 heap spaces (1728 MiB, never given back),
-  15 or more were wholly idle at the end (the largest block a space could make was 31 MiB of its
-  32 MiB), roughly 400-500 MiB. 0.60rc's heap return retired none: it gave back only pieces lying
-  wholly inside the idle stretch, and the heap commits a 32 MiB piece as one block, so no piece did.
-- The music mute ran (`EDEN_MUSIC_MUTED` logged); whether what was muted is the game's music was
-  not checked by ear.
-- The rendering faults of 0.58rc/0.59rc remained (white wash-out, shard slabs and hard rectangles in
-  the cutscenes and the house). Nothing in 0.60rc or 0.61rc changes shaders or drawing.
+- **The buffer was not a staging buffer.** 0.60rc/0.61rc wait for the pool only in the staging pool's
+  `MakeOrReclaim`. This 10 MiB buffer (a buffer cache buffer, usage 0xbff) went through
+  `MemoryAllocator::CreateBuffer` directly: one more ask outside the budget, then the session's end.
+- **The free memory was not usable.** For the 800 s before, the pool stood at 440-950 MiB free with a
+  largest free block of 29-88 MiB; at the end 102 MiB free and 3 MiB. The GPU takes memory in pieces of
+  2 MiB or more, so free runs under 2 MiB ("crumbs") are free for the CPU only. Blocks under 2 MiB
+  (the guest's compact blocks, the CPU heap's 16 KiB pieces when it is taken whole) were placed by the
+  system like everything else, from the bottom, among the graphics memory that comes and goes.
+- **The heap's return worked**: 14 of 54 heap spaces were retired and 392 MiB given back
+  (`EDEN_HEAP_SPACES retired=14 returned_mib=392`), as designed in 0.61rc. The 40 spaces still in use
+  held 0-10 MiB free each at the end; the heap has nothing more to give.
+- **The GPU stalled 4 times** (8.5 s, 8.4 s, 2.5 s, 15.2 s, all recovered by the watchdog).
+- The guest held 6.0 GiB, the allocator 3.0 GiB (2.8 in use), the heap 1.3 GiB and the large CPU
+  blocks 0.75 GiB for the whole session; the pool is full by design and 0.5 GiB of headroom is what
+  keeps a session alive.
+- Rendering faults of 0.58rc-0.60rc were all still there (white wash-out, shard slabs, hard fog
+  rectangles); nothing in 0.62rc changes shaders or drawing.
 
 ## Changes
 
-1. **JIT code cache in smaller blocks** (`src/memory_pages.cpp`). A step is asked for as one 16 MiB
-   block as before; when the pool has none, as 8, 4 and 2 MiB blocks, each its own piece mapped
-   into both views. When not even 2 MiB can be had the JIT waits for the pool, 5 ms at a time, up
-   to 3 s (a loading burst's blocks come back within 100 ms), before the existing abort.
-2. **Heap return splits pieces** (`DecommitHeapRange`). The part of a committed piece inside the
-   idle stretch is released and the piece becomes what is left on each side; `RecommitHeapHole` takes
-   the memory again when the heap grows. If the console refuses to release part of an allocation,
-   the memory is mapped back as it was and the path stops for the session (nothing is lost).
-3. Everything in 0.60rc is kept: staging retry (1.5 s), guest write retry (3 s), `EDEN_HEAP_SPACES`,
-   `heap-return-off.txt`, music mute (`music-on.txt`).
+1. **Buffers wait for the pool too** (`MemoryAllocator::CreateBuffer`, `tools/prepare-vulkan-port.py`).
+   A buffer refused outside the budget is asked for again every 20 ms for up to 1.5 s. Not when the
+   staging retry is already waiting on the thread (`Eden::StagingBuffers::in_make_or_reclaim`).
+2. **Crumbs are packed** (`src/direct_memory.c`). Direct-memory blocks under 2 MiB are placed in the
+   first room at or above the start of the top 3 GiB of the pool, where they lie together, instead of
+   among the session's graphics memory; where that region has no room they are placed as before.
+   `EDEN_NX2_CRUMBS_OFF` (`crumbs-off.txt`) disables it. Host check: `tools/check-direct-memory-crumbs.py`
+   (a stand-in 4 GiB pool, 4000 rounds of 2-9 MiB blocks and 16 KiB-1.9 MiB crumbs taken and given back:
+   with packing the largest free run of the bottom GiB stays 958 MiB, without it 202 MiB).
+3. **Free-run statistics** (`headless/performance.cpp`). `EDEN_SESSION_MEMORY` now ends with
+   `free_runs=N free_usable=B free_crumbs=B`: the free memory in runs of 2 MiB or more, and the free
+   memory in runs under 2 MiB. The next session says whether crumbs were the problem.
+4. Everything in 0.61rc stays: JIT code cache blocks and wait, heap return with split pieces, staging
+   and guest-fault waits, `EDEN_HEAP_SPACES`, music mute.
 
 ## Verification
 
-Host checks on Linux: the CPU-heap page backend with a stand-in for the console's physical memory
-(a piece committed as one block, a stretch from its middle released, the remains intact, the stretch
-taken again zeroed, three pieces given back as one stretch, a refusal leaving everything as it was)
-under ASan/UBSan and ThreadSanitizer; the heap-by-pieces harness with give-back; the staging retry
-and guest write retry checks. Native build, package and isolation checks are in VALIDATION.json.
+Host checks on Linux: the crumb placement check above (both modes, ASan/UBSan), the CPU-heap page backend
+and heap-by-pieces checks, the generated staging pool and allocator checks (`check-vram-reclaim`,
+`check-staging-idle-trim`), the JIT allocator check. Native build, package and isolation checks are in
+VALIDATION.json.
 
-Not verified: that the console accepts the release of part of an allocation (the path falls back if
-not), that the JIT's smaller blocks run translated code correctly on the console, and that these
-changes keep a session alive past the 1030 s of 0.60rc. No 0.61rc gameplay had run when this was written.
+Not verified: that the crumb packing keeps the pool usable for the GPU on the console (the statistics
+will show), that waiting for the pool is enough when a burst holds it (a refusal that outlasts the wait
+still ends the session), and that no allocation relied on the placement of small blocks.

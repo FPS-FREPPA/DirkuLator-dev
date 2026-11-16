@@ -1047,6 +1047,15 @@ for call in ('vmaCreateBuffer(allocator, &ci, &alloc_ci, &handle, &allocation, &
         '        VmaAllocationCreateInfo outside_budget = alloc_ci;\n'
         '        outside_budget.flags &= ~static_cast<VmaAllocationCreateFlags>(VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT);\n'
         '        created = AGAIN;\n'
+        # 0.62rc: a buffer refused outside the budget too is asked for again every 20 ms for 1.5 s. 0.61rc
+        # ended on a 10 MiB buffer the buffer cache asked for (not a staging buffer, so not through
+        # MakeOrReclaim, which waits for itself) while another thread's burst held the pool.
+        '        if (created != VK_SUCCESS && ::Eden::StagingBuffers::in_make_or_reclaim == 0) {\n'
+        '            for (int waited = 0; waited < 75 && created != VK_SUCCESS; ++waited) {\n'
+        '                std::this_thread::sleep_for(std::chrono::milliseconds(20));\n'
+        '                created = AGAIN;\n'
+        '            }\n'
+        '        }\n'
         '        const auto times = ::Eden::Performance::outside_budget.fetch_add(1, std::memory_order_relaxed) + 1;\n'
         '        if ((times & (times - 1)) == 0)  // the 1st, 2nd, 4th, 8th ... time\n'
         '            std::fprintf(stderr, "[ProsperoEden] graphics memory: the allocator\'s budget refused %llu requests; "\n'
@@ -1109,7 +1118,7 @@ allocator = allocator.replace(held_ctor[1], (
 include = '#include "video_core/vulkan_common/vulkan_memory_allocator.h"\n'
 if allocator.count(include) != 1:
     raise RuntimeError('Pinned Vulkan allocator changed: its own include')
-allocator = allocator.replace(include, include + '#include <atomic>\n#include <cstdio>\n#include "performance.h"\n'
+allocator = allocator.replace(include, include + '#include <atomic>\n#include <chrono>\n#include <cstdio>\n#include <thread>\n#include "performance.h"\n#include "staging_buffers.h"\n'
                               '// The pool\'s free memory and largest free block, -1 when unknown (src/memory_pages.cpp).\n'
                               'extern "C" void eden_direct_memory_free(std::int64_t*, std::size_t*) noexcept __attribute__((weak));\n')
 path = output / 'vulkan_memory_allocator.cpp'

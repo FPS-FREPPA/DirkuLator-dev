@@ -21,6 +21,7 @@
 #include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 int __real_sceKernelAllocateDirectMemory(int64_t, int64_t, size_t, size_t, int, int64_t *);
 int __real_sceKernelReleaseDirectMemory(int64_t, size_t);
@@ -218,10 +219,29 @@ int eden_direct_high(size_t size, size_t alignment, int type, int64_t *start) {
   return result;
 }
 
+/* 0.62rc: blocks of under 2 MiB ("crumbs": the CPU heap's 16 KiB pieces, the guest's compact blocks)
+ * are packed into the top EDEN_DIRECT_CRUMBS of the pool. The system gives memory out from the bottom,
+ * the lowest room that fits, so crumbs taken and given back among a session's graphics memory left
+ * the pool as many free runs under 2 MiB, which the GPU cannot use (it takes memory in pieces of 2 MiB
+ * at least): 0.61rc ended on a 10 MiB buffer with 102 MiB free and a largest free block of 3 MiB.
+ * The first room at or above the start of that region is taken, so the crumbs lie together there
+ * (with the blocks that stay, which are taken from the very top), and where it has none the block
+ * is placed as before. EDEN_NX2_CRUMBS_OFF disables it. */
+#define EDEN_DIRECT_CRUMBS ((int64_t)3 << 30)
+static int eden_direct_crumb(size_t size, size_t alignment, int type, int64_t *start) {
+  static int disabled = -1;
+  if (disabled < 0) disabled = getenv("EDEN_NX2_CRUMBS_OFF") != NULL;
+  const int64_t total = sceKernelGetDirectMemorySize();
+  if (disabled || size >= EDEN_DIRECT_SMALL || total <= EDEN_DIRECT_CRUMBS) return -1;
+  const int64_t from = (total - EDEN_DIRECT_CRUMBS) / EDEN_DIRECT_STEP * EDEN_DIRECT_STEP;
+  return __real_sceKernelAllocateDirectMemory(from, total, size, alignment, type, start);
+}
+
 /* As the system places it: for what a session takes and gives back. */
 int eden_direct_low(size_t size, size_t alignment, int type, int64_t *start) {
-  const int result =
-      __real_sceKernelAllocateDirectMemory(0, sceKernelGetDirectMemorySize(), size, alignment, type, start);
+  int result = eden_direct_crumb(size, alignment, type, start);
+  if (result != 0)
+    result = __real_sceKernelAllocateDirectMemory(0, sceKernelGetDirectMemorySize(), size, alignment, type, start);
   eden_dmem_record(result == 0 ? EDEN_DMEM_ALLOC : EDEN_DMEM_FAILED, EDEN_DMEM_LOW, result == 0 && start ? *start : -1,
                    size, __builtin_return_address(0));
   return result;
@@ -261,7 +281,13 @@ int __wrap_sceKernelAllocateDirectMemory(int64_t from, int64_t to, size_t size, 
     result = eden_direct_high_raw(size, alignment, type, start);
     path = EDEN_DMEM_HIGH;
   } else {
-    result = __real_sceKernelAllocateDirectMemory(from, to, size, alignment, type, start);
+    result = -1;
+    if (from == 0 && start && to >= sceKernelGetDirectMemorySize() && size < EDEN_DIRECT_SMALL) {
+      result = eden_direct_crumb(size, alignment, type, start);
+      if (result == 0) path = EDEN_DMEM_HIGH;
+    }
+    if (result != 0)
+      result = __real_sceKernelAllocateDirectMemory(from, to, size, alignment, type, start);
   }
   eden_dmem_record(result == 0 ? EDEN_DMEM_ALLOC : EDEN_DMEM_FAILED, path, result == 0 && start ? *start : -1, size,
                    caller);
