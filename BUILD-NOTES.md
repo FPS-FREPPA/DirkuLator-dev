@@ -43,3 +43,16 @@ existing memory policy pending stronger allocation-lifetime evidence.
 Native build/package and bit-exact component checks do not qualify hardware
 stability, image correctness or 30 FPS gameplay. Published notes must state
 whether those hardware checks have actually been performed.
+
+## Completed qualification
+
+Compiled source: `5f83316b71c78027a78c2c891bb1172fa507f4e1`.
+Native compilation/package checks, captured FSEL bit-exact regression under
+ASan/UBSan, memory-pressure regression, package isolation, capture-archive tests,
+repository hygiene and all 159 dependency-license hashes passed. All 72 installed
+files matched full raw read-back. The old app was backed up and removed first.
+A fresh PS5 00.005.059 boot loaded the game with status 0 and preserved accuracy
+settings at 100% speed. The title was then closed and the three backed-up shader
+caches cleared again. Saves and other user data were preserved. Camera stayed
+stopped. This is startup qualification; no observed controllable gameplay,
+geometry correction, sustained stability or FPS improvement is claimed.
