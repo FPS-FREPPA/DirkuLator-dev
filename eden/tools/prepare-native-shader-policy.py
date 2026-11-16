@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 
 def environment(source: str) -> str:
-    if 'NX2_POKOPIA_FSEL' in source:
+    if 'NX2_FSEL_CORRECTED' in source:
         return source
     old = '    auto lowered = Shader::Ampere::LowerToMaxwell(native, verified_traps, true);'
     assert source.count(old) == 1, 'Pinned native translation call changed'
@@ -16,7 +16,7 @@ def environment(source: str) -> str:
         });
         static std::atomic<unsigned> reported{};
         if (affected && reported.fetch_add(1, std::memory_order_relaxed) < 8)
-            LOG_INFO(Shader, "NX2_POKOPIA_FSEL key={:016x} modifiers={}", native_program_key, affected);
+            LOG_INFO(Shader, "NX2_FSEL_CORRECTED program={:016x} key={:016x} modifiers={}", Settings::GetCurrentProgramID(), native_program_key, affected);
     }
     auto lowered = Shader::Ampere::LowerToMaxwell(native, verified_traps, true, correct_float_select);''')
 

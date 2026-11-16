@@ -83,6 +83,8 @@ int main(int argc,char**argv){
  assert(old_failures>0&&fixed_failures==0);
  using namespace Eden::NativeShaderPolicy;
  static_assert(CorrectFloatSelect(0x0400A3A01EE4C000ULL));
+ static_assert(CorrectFloatSelect(0x0400486024DEC000ULL));
+ static_assert(CacheTag(0x0400486024DEC000ULL)==0x100U);
  static_assert(!CorrectFloatSelect(0x040057C02159A000ULL));
  static_assert(CacheTag(0x0400A3A01EE4C000ULL)==0x100U);
  static_assert(CacheTag(0x040057C02159A000ULL)==0U);

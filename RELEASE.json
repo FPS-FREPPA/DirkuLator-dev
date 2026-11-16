@@ -1,12 +1,12 @@
 {
   "name": "DirkuLator",
-  "version": "0.58rc",
-  "content_version": "00.005.058",
+  "version": "0.59rc",
+  "content_version": "00.005.059",
   "channel": "development",
-  "native_build_verified": true,
-  "component_tests_passed": true,
+  "native_build_verified": false,
+  "component_tests_passed": false,
   "hardware_tested": false,
   "known_graphics_defects": true,
-  "installation_verified": true,
+  "installation_verified": false,
   "gameplay_fps_target": 30
 }

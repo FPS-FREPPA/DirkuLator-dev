@@ -1,67 +1,45 @@
-# DirkuLator 0.58rc
+# DirkuLator 0.59rc
 
-Native PS5 title PPSA99862, content version 00.005.058, development channel.
+Native PS5 title PPSA99862, content version 00.005.059.
 
-## Relaxed GPU transfer-buffer restriction
+## Ocarina floating-point select accuracy
 
-0.57rc limits completed reusable GPU transfer buffers to 64 MiB when the pool's
-largest free physical block is below 512 MiB, and to zero below 32 MiB even if
-much more memory is free across several ranges. The compiled RADV allocator can
-back a device buffer with several 2 MiB physical ranges. A fragmentation-only
-limit can therefore discard reusable buffers despite usable total headroom.
+Enable the existing FSEL operand-modifier correction for Ocarina of Time
+(program 0400486024DEC000). A captured shader, key 1a55fa57a335b963,
+contains FSEL R37, R14, -R14, P0 at offset 0x910 and FSEL R39, R20,
+-R20, P1 at 0x9f0. NVIDIA nvdisasm 13.5.37, with the explicitly selected
+SM86 decoder, independently confirms those instructions. The old Ocarina
+policy ignored the negation and selected between identical register values.
+The corrected path preserves negation and absolute-value modifiers using
+bit operations, including signed zero and NaN payloads. Integer SEL keeps
+its original behavior. Shader-cache tags change for Ocarina so previously
+compiled incorrect shaders are rebuilt.
 
-0.58rc chooses the completed-buffer reuse allowance from total shared-pool free
-memory when that query is known:
+The shader inputs remain private. NVIDIA tool archive SHA256:
+8cc7edd8219882d46eabbd6a686fdf7487fbb9faab4b79398051699ff88fa137.
+Reference: https://docs.nvidia.com/cuda/cuda-binary-utilities/
 
-| Total free | Reusable completed staging buffers |
-| --- | --- |
-| At least 1024 MiB | Up to 256 MiB |
-| 512 to below 1024 MiB | Up to 128 MiB |
-| 256 to below 512 MiB | Up to 64 MiB |
-| Below 256 MiB | None retained |
+## Evidence and limits
 
-A known largest physical range below 2 MiB still retains none, matching the
-existing driver's minimum fragmented-backing granule. Unknown total headroom
-uses the previous conservative rule. The original 256 MiB maximum stays bounded;
-this does not enlarge the physical pool or increase the GPU's reported limits.
-Actual allocation refusals still release all eligible idle buffers and run the
-existing reclaim/retry path. Busy and deferred/in-flight buffers remain protected.
+276 distinct archived native shader streams (320,873 instructions) passed
+the existing lowerer under ASan/UBSan. Lowering acceptance does not establish
+numerical correctness. The FSEL regression compares exact bits for real
+captured instructions, execution and select predicates, negative/positive zero,
+finite values, infinities and NaNs. Build/check results and exact source/binary
+hashes are recorded in VALIDATION.json after qualification.
 
-The intended benefit is fewer repeated transfer-buffer allocations and less
-allocation churn. This is not a measured FPS claim. Both CPU and GPU share the
-same finite pool; increased retained staging can leave less room for other live
-objects, and hardware comparison is required. Collector pressure thresholds and
-the critical total-free boundary remain unchanged. 0.57rc's CPU heap fix is retained.
+The 0.58rc logs contain non-finite position outputs and large projected triangle
+spans, with zero out-of-range indices in the two current runs' sampled probes.
+These findings do not establish FSEL as the cause of the visible geometry fan;
+that requires matching shader/draw evidence and a hardware comparison.
 
-No shader lowering, emulated accuracy/timing, resolution, tensor execution,
-workgroup hardware limit, GPU mapping alignment or rendering-work suppression is
-changed. The target remains measured 30 FPS gameplay with correct emulation.
-White/cyan fog, hard boundaries and geometry faults remain unresolved.
+The guest CPU is AArch64 (ARM64); the native PS5 host executable is x86-64.
+Guest speed stays at 100%. No CPU/GPU power or FPS improvement is claimed.
+The 0.58rc shared-pool OOM remains a separate unresolved issue. Its near-crash
+idle staging retention already reached zero, so increasing retention or merely
+reducing the cap is not established as a fix. This candidate retains the
+existing memory policy pending stronger allocation-lifetime evidence.
 
-## Verification
-
-Production staging-policy and real generated-pool integration checks passed
-under ASan/UBSan, covering known/unknown memory queries, all tier boundaries,
-sub-2-MiB physical holes, critical pressure transitions and preservation of
-busy/deferred buffers. A controlled 60-frame transfer-working-set model reports
-240 recreated buffers with the 0.57rc header and zero with 0.58rc. These are
-model allocation counts, not GPU timings or FPS measurements.
-
-Native compilation, normal release/package checks, pressure regression,
-package isolation, capture-archive tests, repository hygiene and all 159 license
-hashes passed. The native ELF contains the new staging-policy diagnostic marker
-and inherited CPU fragmented-backing path. The build was incremental with compiler
-cache reuse disabled. VALIDATION.json records source, binary and check-log hashes.
-
-The old 0.57rc app was backed up and removed before 0.58rc upload. All 72 new
-files matched full raw FTP read-back; source and registered metadata agree on
-00.005.058, with the title installed and closed. Shader-cache locations are empty
-for a cold start; they had already been cleared for 0.57rc, which was not played.
-Saves, ROMs, firmware, keys, settings and diagnostic dumps are preserved.
-
-0.57rc remains an archived comparison baseline with its own package and private
-Luna instructions. 0.58rc has a separate version-guarded overnight handoff and
-TEST_PROTOCOL_0_58RC.md. Every run starts New Game with cleared shader caches and
-repeats the fixed route. Increased cache allowance can reduce churn but consumes
-more headroom; sustained PS5 stability and a 30 FPS improvement remain unqualified.
-No 0.58rc gameplay was run during build or installation verification.
+Native build/package and bit-exact component checks do not qualify hardware
+stability, image correctness or 30 FPS gameplay. Published notes must state
+whether those hardware checks have actually been performed.

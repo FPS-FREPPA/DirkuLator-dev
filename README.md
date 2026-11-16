@@ -31,31 +31,24 @@ hardware. This is early development, with substantial work remaining.
    dependencies, build instructions, licenses, and honest results so others can
    fork, build, investigate, and contribute.
 
-## Development candidate: 0.58rc
+## Development candidate: 0.59rc
 
-This repository contains the current working source and patch set. **0.58rc is a
-development release candidate, not a stable compatibility release.** Its PS5
-content version is `00.005.058` and its application title is **DirkuLator**
-(`PPSA99862`). The `rc` designation belongs to the release tag and archive name;
-the console requires a numeric content version.
+Ocarina's floating-point select translation now preserves the captured source
+operand negation and absolute-value modifiers. NVIDIA's SM86 disassembler
+confirms sign-selection forms that the preceding title policy treated as
+identical operands. See [BUILD-NOTES.md](BUILD-NOTES.md) for exact evidence,
+qualification and limits. Title PPSA99862, content version 00.005.059.
 
-The candidate retains 0.57rc's scattered CPU heap backing and relaxes the
-fragmentation-only GPU staging reuse cap when total memory headroom is known.
-The reusable completed-buffer allowance is 64, 128 or 256 MiB, with the same
-critical-memory cleanup and in-flight protections. See [BUILD-NOTES.md](BUILD-NOTES.md).
-The production staging-policy/integration sanitizers, native/package checks and
-72-file installation verification passed. VALIDATION.json records exact source,
-binary hashes and limits. PS5 gameplay, stability and FPS improvement remain
-unqualified. 0.57rc is retained as a separate archived comparison baseline.
+Hardware geometry, OOM stability and sustained 30 FPS remain unqualified.
 
 ## Downloads
 
 Verified development prereleases, with matching source, checksums, change notes and test protocols.
 
-- **0.58rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-source.zip) · [Release notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.58rc).
-- **0.57rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-source.zip) · [Release notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.57rc).
+- **0.58rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-PS5.zip) Â· [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-source.zip) Â· [Release notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.58rc).
+- **0.57rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-PS5.zip) Â· [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-source.zip) Â· [Release notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.57rc).
 
-0.58rc is the current installed test candidate. The 30 FPS target and sustained
+0.58rc remains installed while 0.59rc is being qualified. The 30 FPS target and sustained
 hardware stability still require the repeat-route gameplay test.
 
 ## Scope

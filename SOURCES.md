@@ -1,6 +1,6 @@
 # Source and rebuilding
 
-The source for 0.58rc is on the `DirkuLator-dev` branch at
+The source for 0.59rc is on the `DirkuLator-dev` branch at
 https://github.com/FPS-FREPPA/DirkuLator-dev. The package's VALIDATION.json
 identifies the exact compiled source commit; its accompanying source archive
 contains that commit. Existing candidate tags remain unchanged.

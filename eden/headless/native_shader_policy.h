@@ -3,10 +3,10 @@
 #include <cstdint>
 
 namespace Eden::NativeShaderPolicy {
-// Keep the unqualified lowering policy for other titles while this fix is
-// validated on Pokopia. This is selected per program, never cached per process.
+// FSEL operand modifiers are required by captured Pokopia and Ocarina shaders.
+// Select per program and invalidate the corresponding shader cache below.
 constexpr bool CorrectFloatSelect(std::uint64_t program_id) {
-    return program_id == 0x0400A3A01EE4C000ULL;
+    return program_id == 0x0400A3A01EE4C000ULL || program_id == 0x0400486024DEC000ULL;
 }
 constexpr unsigned CacheTag(std::uint64_t program_id) {
     if (program_id == 0x040074A01BF12000ULL) return 0x201U;
