@@ -1097,6 +1097,18 @@ void ReportGpuThread(unsigned frame) {
     Snapshot();
 }
 
+// 0.67rc: the wait profile (src/wait_profile.c) names its threads from the table the crash report uses.
+// The system calls are not used: pthread_setname_np hangs on this platform and the SDK has no stubs for the others.
+extern "C" const char* eden_thread_name_of(std::uintptr_t thread) noexcept {
+    const unsigned count = Eden::Crash::named_thread_count.load(std::memory_order_relaxed);
+    for (unsigned i = 0; i < Eden::Crash::kNamedThreads && i < count; ++i) {
+        if (Eden::Crash::named_threads[i].thread.load(std::memory_order_relaxed) == thread &&
+            Eden::Crash::named_threads[i].name[0])
+            return Eden::Crash::named_threads[i].name;
+    }
+    return nullptr;
+}
+
 void RegisterWorker(const char* name) {
     Eden::Crash::NameThread(name);  // a crash report names the thread
 #if defined(EDEN_DEV_PROFILE) && defined(PS5_NATIVE)

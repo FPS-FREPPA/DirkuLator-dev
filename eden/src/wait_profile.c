@@ -18,10 +18,10 @@
 #include <time.h>
 
 extern const char __eden_text_start[] __attribute__((weak));
-/* The thread name API differs between systems (glibc and newer FreeBSD: pthread_getname_np, older FreeBSD:
- * pthread_get_name_np); use whichever the link provides. */
-int pthread_getname_np(pthread_t, char *, size_t) __attribute__((weak));
-void pthread_get_name_np(pthread_t, char *, size_t) __attribute__((weak));
+/* 0.67rc thread names: from the table the crash report keeps (headless/performance.cpp). The system calls are
+ * not used: pthread_setname_np hangs on this platform and the SDK has no stubs for pthread_get_name_np. Absent
+ * (host test), the report shows "-". */
+const char *eden_thread_name_of(uintptr_t) __attribute__((weak));
 
 int __real_pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
 int __real_pthread_cond_timedwait(pthread_cond_t *, pthread_mutex_t *, const struct timespec *);
@@ -43,7 +43,6 @@ struct eden_wait_slot {
 };
 static struct eden_wait_slot eden_wait_slots[EDEN_WAIT_SLOTS];
 static _Atomic uint64_t eden_wait_thread_ids[EDEN_WAIT_THREADS]; /* pthread_t values, in order of first wait */
-static char eden_wait_thread_names[EDEN_WAIT_THREADS][24];       /* 0.67rc: the thread's name when it first waited */
 static _Atomic unsigned eden_wait_thread_count;
 static _Atomic uint64_t eden_wait_dropped;
 static __thread int eden_wait_thread_index = -1;
@@ -63,17 +62,6 @@ static unsigned eden_wait_thread(void) {
     at = EDEN_WAIT_THREADS - 1;
   } else {
     atomic_store_explicit(&eden_wait_thread_ids[at], id, memory_order_relaxed);
-    char *name = eden_wait_thread_names[at];
-    name[0] = '\0';
-    if (pthread_getname_np) {
-      pthread_getname_np(pthread_self(), name, sizeof eden_wait_thread_names[at]);
-    } else if (pthread_get_name_np) {
-      pthread_get_name_np(pthread_self(), name, sizeof eden_wait_thread_names[at]);
-    }
-    name[sizeof eden_wait_thread_names[at] - 1] = '\0';
-    for (char *p = name; *p; ++p) {
-      if (*p == ' ' || *p == ',' || *p == ';' || *p == '(' || *p == ')') *p = '_'; /* keep the report one parseable line */
-    }
   }
   eden_wait_thread_index = (int)at;
   return at;
@@ -178,9 +166,18 @@ size_t eden_wait_profile_format(char *out, size_t size, unsigned top) {
     const unsigned thread = (unsigned)((rows[i].key >> 48) & 0x7fff);
     const unsigned primitive = (unsigned)((rows[i].key >> 40) & 0xff);
     const uint64_t id = thread < EDEN_WAIT_THREADS ? atomic_load_explicit(&eden_wait_thread_ids[thread], memory_order_relaxed) : 0;
+    char label[24] = "-";
+    const char *named = eden_thread_name_of && id ? eden_thread_name_of((uintptr_t)id) : NULL;
+    if (named) {
+      size_t k = 0;
+      for (; named[k] && k < sizeof label - 1; ++k) {
+        const char c = named[k];
+        label[k] = (c == ' ' || c == ',' || c == ';' || c == '(' || c == ')') ? '_' : c; /* one parseable token */
+      }
+      label[k] = '\0';
+    }
     at += snprintf(out + at, size - (size_t)at,
-                   " t%u(%#llx,%s) %s caller=%#llx count=%llu total_ms=%llu max_ms=%llu;", thread, (unsigned long long)id,
-                   thread < EDEN_WAIT_THREADS && eden_wait_thread_names[thread][0] ? eden_wait_thread_names[thread] : "-",
+                   " t%u(%#llx,%s) %s caller=%#llx count=%llu total_ms=%llu max_ms=%llu;", thread, (unsigned long long)id, label,
                    primitive < 5 ? eden_wait_names[primitive] : "?",
                    (unsigned long long)(rows[i].key & 0xffffffffffull), (unsigned long long)rows[i].count,
                    (unsigned long long)(rows[i].total / 1000000ull), (unsigned long long)(rows[i].max / 1000000ull));

@@ -8,6 +8,8 @@
 #include "common/logging.h"
 #include "gameplay_test.h"
 #include "input_common/input_poller.h"
+#include "input_record.h"
+#include "storage_paths.h"
 #include <utility>
 
 namespace {
@@ -20,6 +22,11 @@ extern "C" int sceUserServiceGetForegroundUser(int* user);
 extern "C" int sceUserServiceGetLoginUserIdList(LoginUserIdList* list);
 
 namespace Eden {
+// 0.67rc: the physical pad of player 1, logged for replay (input_record.h); opened on the first poll.
+static InputRecorder& PlayerInputRecorder() {
+    static InputRecorder recorder{std::string{kDataDir}};
+    return recorder;
+}
 // Look for newly signed-in (or signed-out) users about once a second at the 4 ms poll interval.
 constexpr unsigned kPollsPerScan = 250;
 // The touchpad is a game button (the guest's Minus unless the mapping says otherwise) as well as
@@ -305,6 +312,7 @@ bool Pad::Poll() {
             continue;
         }
         for (int i = 0; i < count; ++i) {
+            if (player == 0) PlayerInputRecorder().Observe(samples[i]);  // 0.67rc: what the player does, for replay
             ++samples_read;
             usable_samples += ps5::pad::is_usable(samples[i]);
             intercepted_samples += (samples[i].buttons & ps5::pad::kButtonIntercepted) != 0;
