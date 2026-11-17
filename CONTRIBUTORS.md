@@ -5,6 +5,9 @@
 - **Codex (OpenAI coding assistant)** — AI-assisted source investigation,
   implementation, regression checks, build and deployment tooling, diagnostic
   collection, and documentation under the maintainer's direction.
+- **Claude (Anthropic coding assistant)** — AI-assisted performance and graphics
+  investigation, PS5 test-run automation, evidence logging, build tooling, and
+  documentation under the maintainer's direction.
 
 The original authors and contributors retain their existing credits, commit
 history, copyright notices, and license terms. See [NOTICE.md](NOTICE.md),

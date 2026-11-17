@@ -117,6 +117,40 @@ are public and forkable, with the inherited Git history retained. See
 the revision, reproduction steps, actual test results, and whether evidence comes
 from host checks or a physical PS5.
 
+## Credits
+
+DirkuLator is built on the work of others; the full list with licenses is in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [NOTICE.md](NOTICE.md).
+
+**Built on (included in the source and build)**
+
+- [Eden](https://github.com/eden-emulator/mirror): the emulator core, with the libraries it pins.
+- [EdGlantine-PS5](https://github.com/Portablelle/EdGlantine-PS5) by Portablelle: the inherited source baseline
+  of the PS5 port.
+- [PS5 Payload SDK](https://github.com/ps5-payload-dev/sdk) by John Törnblom (ps5-payload-dev) and its
+  [pacbrew](https://github.com/ps5-payload-dev/pacbrew-repo) packages.
+- [PS5 Mesa](https://github.com/mihawk-99/PS5_Mesa) and [PS5 Vulkan](https://github.com/mihawk-99/PS5_Vulkan) by
+  Mihawk, [ps5-vulkan](https://github.com/mpereiraesaa/ps5-vulkan) by mpereiraesaa.
+- [PS5 Native App Boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate),
+  [ps5-opengl](https://github.com/blackbearreloaded/ps5-opengl),
+  [ProsperoPuzzles](https://github.com/blackbearreloaded/ProsperoPuzzles) and
+  [ps5-homebrew-ui](https://github.com/blackbearreloaded/ps5-homebrew-ui) by BlackBearReloaded.
+- [PS5-Lapy-JB-Daemon](https://github.com/ArkSama/PS5-Lapy-JB-Daemon) by ArkSama.
+
+**Used alongside it (research, rules and test setup; not part of the build)**
+
+- [AnyPS5](https://github.com/boykopovar/AnyPS5): contribution rules and PR research.
+- Lichii, nxnative ([seedds/nxnative](https://github.com/seedds/nxnative)) and Ocarina Recomp: how other Switch 2
+  emulators handle Ocarina of Time rendering (depth invariance, culling, point-topology meshes).
+- [NintendoShaders](https://github.com/GRAnimated/NintendoShaders) by GRAnimated: a reference for Nintendo's
+  render-library shader conventions.
+- The PS5 jailbreak tools used on the test console: the Relapse exploit, kstuff, ShadowMountPlus and etaHEN.
+- The Spotify Connect receiver "librespot-ps5" by stupiditytries, based on
+  [librespot](https://github.com/librespot-org/librespot), is played on the test console while testing.
+
+Thanks to the Eden maintainers and contributors, Mihawk, mpereiraesaa, John Törnblom, SvenGDK, Portablelle, and the
+PS5 homebrew community. AI assistance is credited in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
 ## License and corresponding source
 
 DirkuLator's port code is distributed under **GPL-3.0-or-later**; see
