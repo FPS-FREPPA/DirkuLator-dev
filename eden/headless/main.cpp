@@ -66,6 +66,7 @@
 #include "performance.h"
 #include "perf_monitor.h"
 #include "pc_sampler.h"
+#include "run_summary.h"
 #include "stall_watchdog.h"
 #include "thread_dump.h"
 #include "dev_vulkan.h"
@@ -422,6 +423,8 @@ int main(int argc, char** argv) {
 #ifndef EDEN_DEV_PROFILE
     Eden::PcSampler::Init(std::string{Eden::kDataDir});
 #endif
+    // 0.69rc: the console writes its own run summary (logs/run-summary-<launch>.txt, run_summary.h).
+    Eden::RunSummary::Get().Init(std::string{Eden::kDataDir}, std::string{Eden::kInstallDir});
     // /data/eden-nx2/unified-memory.txt: images, device-local and upload buffers share the device
     // local, host visible memory types (vulkan_memory_allocator.cpp, layer 99zzzzi), so one kind of
     // allocation can use the room another left inside the allocator's blocks.

@@ -34,6 +34,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
+#include "run_summary.h"
 
 // The start of our own code, from the link (src/wait_profile.c uses it the same way); absent in host tests.
 extern "C" const char __eden_text_start[] __attribute__((weak));
@@ -121,14 +122,30 @@ inline std::vector<std::uintptr_t> Drain(std::size_t index) {
     return out;
 }
 
-// One report line for a target from a set of samples; empty when there are none.
-inline std::string FormatReport(std::size_t index, const std::vector<std::uintptr_t>& pcs, double up_s,
-                                unsigned top = 24) {
-    if (pcs.empty()) return {};
+// The busiest addresses of a set of samples as printed text ("<relative address>" or "abs:<address>") and counts.
+inline std::vector<std::pair<std::string, unsigned>> TopEntries(const std::vector<std::uintptr_t>& pcs,
+                                                               unsigned top = 24) {
     std::unordered_map<std::uintptr_t, unsigned> count;
     for (std::uintptr_t pc : pcs) ++count[pc];
     std::vector<std::pair<std::uintptr_t, unsigned>> rows(count.begin(), count.end());
     std::sort(rows.begin(), rows.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
+    const std::uintptr_t base = reinterpret_cast<std::uintptr_t>(__eden_text_start);
+    std::vector<std::pair<std::string, unsigned>> out;
+    for (std::size_t i = 0; i < rows.size() && i < top; ++i) {
+        const std::uintptr_t pc = rows[i].first;
+        char text[40];
+        // Relative to our own code when the address lies above its start (else absolute: a library or JIT block).
+        std::snprintf(text, sizeof text, "%s%#llx", base && pc >= base ? "" : "abs:",
+                      static_cast<unsigned long long>(base && pc >= base ? pc - base : pc));
+        out.emplace_back(text, rows[i].second);
+    }
+    return out;
+}
+
+// One report line for a target from a set of samples; empty when there are none.
+inline std::string FormatReport(std::size_t index, const std::vector<std::uintptr_t>& pcs, double up_s,
+                                unsigned top = 24) {
+    if (pcs.empty()) return {};
     const std::uintptr_t base = reinterpret_cast<std::uintptr_t>(__eden_text_start);
     char head[256];
     std::snprintf(head, sizeof head,
@@ -137,14 +154,7 @@ inline std::string FormatReport(std::size_t index, const std::vector<std::uintpt
                   signals_sent.load(std::memory_order_relaxed), signals_failed.load(std::memory_order_relaxed),
                   static_cast<unsigned long long>(base));
     std::string line = head;
-    for (std::size_t i = 0; i < rows.size() && i < top; ++i) {
-        const std::uintptr_t pc = rows[i].first;
-        char one[64];
-        // Relative to our own code when the address lies above its start (else absolute: a library or JIT block).
-        std::snprintf(one, sizeof one, " %s%#llx=%u", base && pc >= base ? "" : "abs:",
-                      static_cast<unsigned long long>(base && pc >= base ? pc - base : pc), rows[i].second);
-        line += one;
-    }
+    for (const auto& [address, count] : TopEntries(pcs, top)) line += " " + address + "=" + std::to_string(count);
     return line;
 }
 
@@ -194,8 +204,11 @@ inline void Run(Settings s) {
             window = now;
             const double up = std::chrono::duration<double>(now - began).count();
             for (std::size_t i = 0; i < kTargets; ++i) {
-                const std::string line = FormatReport(i, Drain(i), up);
-                if (!line.empty()) std::fprintf(stderr, "%s\n", line.c_str());
+                const std::vector<std::uintptr_t> pcs = Drain(i);
+                const std::string line = FormatReport(i, pcs, up);
+                if (line.empty()) continue;
+                std::fprintf(stderr, "%s\n", line.c_str());
+                RunSummary::Get().AddPc(kNames[i], TopEntries(pcs));  // 0.69rc: the console's own summary
             }
         }
     }

@@ -15,6 +15,7 @@
 // Cost: while it runs, the draw-path timers (timers_on) and the Vulkan API timers
 // (vulkan_cost_enabled) stay on, which the profiling session already does for its first 20
 // minutes: two clock reads per timed phase. Compare fps with perf-monitor-off.txt if that matters.
+#include "run_summary.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -88,6 +89,7 @@ public:
     ~Monitor() {
         enabled.store(false, std::memory_order_relaxed);
         Hud::perf_shown.store(false, std::memory_order_relaxed);
+        RunSummary::Get().Flush();  // 0.69rc: a clean exit writes the summary once more
         if (file) std::fclose(file);
     }
     Monitor(const Monitor&) = delete;
@@ -199,6 +201,10 @@ private:
                      static_cast<double>(memory_total - std::min(memory_free, memory_total)) / mib,
                      static_cast<double>(memory_total) / mib, static_cast<double>(graphics) / mib);
         std::fflush(file);
+        // 0.69rc: the console's own run summary (run_summary.h).
+        RunSummary::Get().AddSecond(static_cast<double>(now - start_ns) / 1e9, static_cast<unsigned>(frame_count),
+                                    c.draws - p.draws, ms(c.draw_ns, p.draw_ns), pct(Performance::GpuBusyPercent()),
+                                    ms(c.submit_ns, p.submit_ns), ms(c.fence_drain_ns, p.fence_drain_ns));
         if (hud) {
             const double p99 = rank(0.99);
             Hud::perf_p99_tenths.store(p99 < 0 ? ~0u : static_cast<uint32_t>(std::lround(p99 * 10.0)),

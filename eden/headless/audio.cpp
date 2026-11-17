@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "devices.h"
 #include "preferences.h"
+#include "run_summary.h"
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -92,6 +93,7 @@ AudioStream::AudioStream(Core::System& system, u32 channels, const std::string& 
                                      name.c_str(), static_cast<unsigned long long>(probe_blocks), max_gap_ms,
                                      static_cast<unsigned long long>(late8), static_cast<unsigned long long>(late16),
                                      static_cast<unsigned long long>(late50), max_render_ms, max_output_ms);
+                        RunSummary::Get().AddAudioOut(probe_blocks, late8, late16, late50, max_gap_ms);
                         window_start = output_end;
                         probe_blocks = late8 = late16 = late50 = 0;
                         max_gap_ms = max_render_ms = max_output_ms = 0.0;
