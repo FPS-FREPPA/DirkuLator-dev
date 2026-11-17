@@ -62,6 +62,8 @@ AudioStream::AudioStream(Core::System& system, u32 channels, const std::string& 
             auto window_start = last_return;
             u64 probe_blocks = 0, late8 = 0, late16 = 0, late50 = 0;
             double max_gap_ms = 0.0, max_render_ms = 0.0, max_output_ms = 0.0;
+            int mix_peak = 0;          // 0.75rc: the loudest sample sent to the port in the window
+            u64 silent_blocks = 0;     // blocks that were all zero
             auto ms = [](Clock::duration d) { return std::chrono::duration<double, std::milli>(d).count(); };
             while (!stop.stop_requested()) {
                 const auto wait_begin = Clock::now();
@@ -70,6 +72,12 @@ AudioStream::AudioStream(Core::System& system, u32 channels, const std::string& 
                 if (render_begin - wait_begin > std::chrono::milliseconds(30)) last_return = render_begin; // a pause, not a dropout
                 ProcessAudioOutAndRender(block, kAudioOutGrain);
                 const auto render_end = Clock::now();
+                {
+                    int block_peak = 0;
+                    for (const s16 sample : block) block_peak = std::max(block_peak, sample < 0 ? -static_cast<int>(sample) : static_cast<int>(sample));
+                    mix_peak = std::max(mix_peak, block_peak);
+                    if (block_peak == 0) ++silent_blocks;
+                }
                 // AudioOut paces complete 256-frame, 48 kHz stereo blocks.
                 in_flight = true;
                 lock.unlock();
@@ -89,14 +97,17 @@ AudioStream::AudioStream(Core::System& system, u32 channels, const std::string& 
                     if (output_end - window_start >= std::chrono::seconds(5)) {
                         std::fprintf(stderr,
                                      "EDEN_AUDIO_OUT name=%s blocks=%llu max_gap_ms=%.1f late8=%llu late16=%llu late50=%llu "
-                                     "max_render_ms=%.1f max_output_ms=%.1f\n",
+                                     "max_render_ms=%.1f max_output_ms=%.1f mix_peak=%d silent_blocks=%llu\n",
                                      name.c_str(), static_cast<unsigned long long>(probe_blocks), max_gap_ms,
                                      static_cast<unsigned long long>(late8), static_cast<unsigned long long>(late16),
-                                     static_cast<unsigned long long>(late50), max_render_ms, max_output_ms);
+                                     static_cast<unsigned long long>(late50), max_render_ms, max_output_ms, mix_peak,
+                                     static_cast<unsigned long long>(silent_blocks));
                         RunSummary::Get().AddAudioOut(probe_blocks, late8, late16, late50, max_gap_ms);
                         window_start = output_end;
                         probe_blocks = late8 = late16 = late50 = 0;
                         max_gap_ms = max_render_ms = max_output_ms = 0.0;
+                        mix_peak = 0;
+                        silent_blocks = 0;
                     }
                 }
                 in_flight = false;

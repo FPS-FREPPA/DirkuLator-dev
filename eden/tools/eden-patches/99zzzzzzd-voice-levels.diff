@@ -1,0 +1,50 @@
+DirkuLator 0.75rc: EDEN_AUDIO_VOICE also reports, per sample format and five seconds, the loudest sample a voice update
+produced (peak) and how many updates were not silent (audible), to tell a game whose music voice is silent from one whose
+music is mixed away later. Read-only, PS5 build only (EDEN_NX2_PS5_PROTO).
+
+diff --git a/src/audio_core/renderer/command/data_source/decode.cpp b/src/audio_core/renderer/command/data_source/decode.cpp
+--- a/src/audio_core/renderer/command/data_source/decode.cpp
++++ b/src/audio_core/renderer/command/data_source/decode.cpp
+@@ -216,6 +216,13 @@
+ ///
+ /// @param memory - Core memory to read data from.
+ /// @param args   - The wavebuffer data, and information for how to decode it.
++#ifdef EDEN_NX2_PS5_PROTO
++// 0.75rc EDEN_AUDIO_VOICE peak/audible: the loudest sample a voice update produced since the last report, per sample
++// format, and how many updates were not silent (peak above 64). Tells a silent voice from one that is mixed away later.
++static std::array<std::atomic<s32>, 8> g_voice_peak{};
++static std::array<std::atomic<u64>, 8> g_voice_audible{};
++#endif
++
+ void DecodeFromWaveBuffers(Core::Memory::Memory& memory, const DecodeFromWaveBuffersArgs& args) {
+     constexpr auto EndWaveBuffer = [](auto& voice_state, auto& wavebuffer, auto& index, auto& played_samples, auto& consumed) -> void {
+         voice_state.wave_buffer_valid[index] = false;
+@@ -264,8 +271,10 @@
+             const u64 updates = voice_updates[format].exchange(0, std::memory_order_relaxed);
+             const u64 starved = voice_starved[format].exchange(0, std::memory_order_relaxed);
+             if (updates != 0) {
+-                std::fprintf(stderr, "EDEN_AUDIO_VOICE format=%zu updates=%llu starved=%llu\n", format,
+-                             static_cast<unsigned long long>(updates), static_cast<unsigned long long>(starved));
++                std::fprintf(stderr, "EDEN_AUDIO_VOICE format=%zu updates=%llu starved=%llu peak=%d audible=%llu\n", format,
++                             static_cast<unsigned long long>(updates), static_cast<unsigned long long>(starved),
++                             static_cast<int>(g_voice_peak[format].exchange(0, std::memory_order_relaxed)),
++                             static_cast<unsigned long long>(g_voice_audible[format].exchange(0, std::memory_order_relaxed)));
+             }
+         }
+     }
+@@ -448,6 +457,15 @@
+         }
+     }
+ #endif
++#ifdef EDEN_NX2_PS5_PROTO
++    {
++        s32 level = 0;
++        for (const s32 value : args.output) level = (std::max)(level, value < 0 ? -value : value);
++        s32 seen = g_voice_peak[voice_format].load(std::memory_order_relaxed);
++        while (level > seen && !g_voice_peak[voice_format].compare_exchange_weak(seen, level, std::memory_order_relaxed)) {}
++        if (level > 64) g_voice_audible[voice_format].fetch_add(1, std::memory_order_relaxed);
++    }
++#endif
+     voice_state.wave_buffers_consumed = wavebuffers_consumed;
+     voice_state.played_sample_count = played_sample_count;
+     voice_state.wave_buffer_index = wavebuffer_index;
