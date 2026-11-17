@@ -3,6 +3,8 @@
 #include "preferences.h"
 #include <algorithm>
 #include <array>
+#include <chrono>
+#include <cstdio>
 #include <stdexcept>
 #include <vector>
 #include "common/logging.h"
@@ -50,14 +52,51 @@ AudioStream::AudioStream(Core::System& system, u32 channels, const std::string& 
         worker = std::jthread([this](std::stop_token stop) {
             std::array<s16, kAudioOutGrain * 2> block{};
             std::unique_lock lock(mutex);
+            // 0.67rc EDEN_AUDIO_OUT: how late this thread feeds the port. A 256-frame block lasts 5.33 ms,
+            // so a gap between two sceAudioOutOutput returns of more than ~8 ms is an audible dropout the
+            // render queue (EDEN_AUDIO_SINK) cannot see. Every 5 s: blocks, the longest gap, how many gaps
+            // were over 8, 16 and 50 ms, and the longest render and output call.
+            using Clock = std::chrono::steady_clock;
+            auto last_return = Clock::now();
+            auto window_start = last_return;
+            u64 probe_blocks = 0, late8 = 0, late16 = 0, late50 = 0;
+            double max_gap_ms = 0.0, max_render_ms = 0.0, max_output_ms = 0.0;
+            auto ms = [](Clock::duration d) { return std::chrono::duration<double, std::milli>(d).count(); };
             while (!stop.stop_requested()) {
+                const auto wait_begin = Clock::now();
                 if (!wake.wait(lock, stop, [this] { return !IsPaused(); })) break;
+                const auto render_begin = Clock::now();
+                if (render_begin - wait_begin > std::chrono::milliseconds(30)) last_return = render_begin; // a pause, not a dropout
                 ProcessAudioOutAndRender(block, kAudioOutGrain);
+                const auto render_end = Clock::now();
                 // AudioOut paces complete 256-frame, 48 kHz stereo blocks.
                 in_flight = true;
                 lock.unlock();
                 const int result = sceAudioOutOutput(handle, block.data());
+                const auto output_end = Clock::now();
                 lock.lock();
+                {
+                    const double gap = ms(output_end - last_return);
+                    last_return = output_end;
+                    ++probe_blocks;
+                    if (gap > 8.0) ++late8;
+                    if (gap > 16.0) ++late16;
+                    if (gap > 50.0) ++late50;
+                    max_gap_ms = std::max(max_gap_ms, gap);
+                    max_render_ms = std::max(max_render_ms, ms(render_end - render_begin));
+                    max_output_ms = std::max(max_output_ms, ms(output_end - render_end));
+                    if (output_end - window_start >= std::chrono::seconds(5)) {
+                        std::fprintf(stderr,
+                                     "EDEN_AUDIO_OUT name=%s blocks=%llu max_gap_ms=%.1f late8=%llu late16=%llu late50=%llu "
+                                     "max_render_ms=%.1f max_output_ms=%.1f\n",
+                                     name.c_str(), static_cast<unsigned long long>(probe_blocks), max_gap_ms,
+                                     static_cast<unsigned long long>(late8), static_cast<unsigned long long>(late16),
+                                     static_cast<unsigned long long>(late50), max_render_ms, max_output_ms);
+                        window_start = output_end;
+                        probe_blocks = late8 = late16 = late50 = 0;
+                        max_gap_ms = max_render_ms = max_output_ms = 0.0;
+                    }
+                }
                 in_flight = false;
                 wake.notify_all();
                 if (result < 0) {

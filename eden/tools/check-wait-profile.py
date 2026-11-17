@@ -106,6 +106,8 @@ int main(void) {
   assert(count_of(line, "mutex_lock") == 1);
   /* three threads waited: main (usleep), the contender (mutex), the sleeper (nanosleep, usleep, cond) */
   assert(strstr(line, "threads=3") != NULL);
+  /* 0.67rc: every thread is reported with an address and a name ("-" when the system gives none) */
+  assert(strstr(line, ",check)") != NULL || strstr(line, ",-)") != NULL);
   /* the report cleared the counters */
   assert(eden_wait_profile_format(line, sizeof line, 14) == 0);
   puts("PASS wait profile");
