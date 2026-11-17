@@ -31,26 +31,43 @@ hardware. This is early development, with substantial work remaining.
    dependencies, build instructions, licenses, and honest results so others can
    fork, build, investigate, and contribute.
 
-## Development candidate: 0.63rc
+## Status
 
-0.62rc ran a 101-minute console session with the pool full but alive (about 600 MiB free in runs of
-2 MiB or more, a largest free run of 36 MiB). 0.63rc changes no memory behaviour: it counts the
-driver's refused direct-memory requests, which are the first probe of a large block before the driver
-takes it in chunks, and stops them from filling the event ring. See [BUILD-NOTES.md](BUILD-NOTES.md).
-Title PPSA99862, content version 00.005.063.
+**Latest published candidate: 0.63rc** (title PPSA99862, content version 00.005.063). **0.64rc** (00.005.064) is
+built and kept local; it is not published until it has been tested on a console.
+
+What the console runs show, from the 0.58rc to 0.63rc history (details in [BUILD-NOTES.md](BUILD-NOTES.md)):
+
+- **Stability is improving, not solved.** 0.60rc and 0.61rc ended on direct-memory exhaustion (a JIT block, then a
+  10 MiB buffer). 0.62rc ran 101 minutes and 0.63rc 66 minutes in play without a crash report, with the pool
+  full by design (11.5-11.9 GiB of 12.4 GiB held) and a shrinking largest free block (56 MiB at the start, 12-21 MiB
+  later). That is a long session, not proof that exhaustion is gone.
+- **Refused direct-memory requests are mostly first attempts.** The CPU heap and the Vulkan driver ask for a large
+  block in one piece and fall back to pieces or chunks when refused. 0.63rc counted them; 0.64rc attributes them
+  per caller so the next run can show which request, if any, is a real loss.
+- **Rendering is not fixed.** In Kokiri Forest the picture still has view-dependent white haze, hard fog
+  boundaries, shard-like polygon slabs, black water, unlit black props and characters, and an over-exposed
+  yellow interior in Link's house. Close-range views can be clean, which points at the fog/depth blend pass rather
+  than at geometry or textures in general.
+- **Performance is far below target.** The 0.63rc run averaged about 6 FPS (median 4), with a fifth of the seconds
+  presenting no frame and 40 seconds at 30 FPS or more.
 
 Hardware stability, geometry and sustained 30 FPS remain unqualified.
 
 ## Downloads
 
-Verified development prereleases, with matching source, checksums, change notes and test protocols.
+Verified development prereleases, each with the matching source ZIP, checksums, validation record and change notes.
 
+- **0.63rc** (latest published): [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.63rc/DirkuLator-0.63rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.63rc/DirkuLator-0.63rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.63rc).
+- **0.62rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.62rc/DirkuLator-0.62rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.62rc/DirkuLator-0.62rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.62rc).
+- **0.61rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.61rc/DirkuLator-0.61rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.61rc/DirkuLator-0.61rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.61rc).
+- **0.60rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.60rc/DirkuLator-0.60rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.60rc/DirkuLator-0.60rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.60rc).
 - **0.59rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.59rc/DirkuLator-0.59rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.59rc/DirkuLator-0.59rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.59rc).
-- **0.58rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-PS5.zip) Ã‚Â· [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-source.zip) Ã‚Â· [Release notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.58rc).
-- **0.57rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-PS5.zip) Ã‚Â· [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-source.zip) Ã‚Â· [Release notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.57rc).
+- **0.58rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.58rc).
+- **0.57rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.57rc).
 
-0.59rc is installed; all 72 files and fresh PS5 startup were verified. The title is closed with cold shader caches ready for testing. The 30 FPS target and sustained
-hardware stability still require the repeat-route gameplay test.
+Earlier candidates (0.5.54rc and before) are on the [releases page](https://github.com/FPS-FREPPA/DirkuLator-dev/releases). Check a release's SHA256SUMS and
+VALIDATION.json before installing it; `hardware_tested` in VALIDATION.json says whether a console ran that build.
 
 ## Scope
 
@@ -61,12 +78,15 @@ hardware stability still require the repeat-route gameplay test.
 - An application-level input bridge: explicit arming, per-session commands,
   applied acknowledgments, physical-controller cancellation, and automatic
   expiry within three seconds. It is not a console-wide controller service.
+  `tools/bridge/hold.py` adds continuous movement (a stick held, or both
+  sticks at random) by chaining overlapping pulses, so every pulse still expires on
+  its own; see [tools/bridge/README.md](tools/bridge/README.md).
 - Source-built packages with matching version metadata, source provenance,
   artifact hashes, and retained build/validation results.
 
-This candidate does not claim to fix the observed white/cyan fog, sharp fog
-boundaries, or mesh/vertex shattering. Earlier 0.5.21 hardware runs demonstrated
-startup and gameplay; those results do not certify 0.58rc. No compatibility or
+These candidates do not claim to fix the observed white fog, sharp fog
+boundaries, or mesh/vertex shattering, and they do not change shaders or drawing.
+A result for one build does not certify the next. No compatibility or
 performance result is implied for games that have not been tested.
 
 ## Build
@@ -92,7 +112,8 @@ render incorrectly, or affect game progress; keep backups of your own data.
 ## Development and contributions
 
 `DirkuLator` and `DirkuLator-dev` keep the project and development work separate.
-The first candidate is published on the development repository. Both repositories
+Candidates are published on the development repository (`DirkuLator-dev`); a
+candidate is published after the console test it needs. Both repositories
 are public and forkable, with the inherited Git history retained. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for contribution and test expectations. Include
 the revision, reproduction steps, actual test results, and whether evidence comes
@@ -123,6 +144,3 @@ repository housekeeping changes are recorded separately in Git.
 
 ROMs, game keys, proprietary firmware/system modules, saves, credentials,
 private console captures, and local build caches are not part of this repository.
-
-0.56rc subsequently failed on PS5 from physical-memory exhaustion and fragmentation.
-0.57rc adds scattered CPU heap backing; see BUILD-NOTES.md for its bounds and qualification.
