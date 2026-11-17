@@ -31,12 +31,13 @@ hardware. This is early development, with substantial work remaining.
    dependencies, build instructions, licenses, and honest results so others can
    fork, build, investigate, and contribute.
 
-## Development candidate: 0.62rc
+## Development candidate: 0.63rc
 
-0.61rc's console session ended on a buffer the allocator refused with 102 MiB of the pool free
-but no free run over 3 MiB. 0.62rc waits for the pool in the allocator too, packs blocks under
-2 MiB together at the top of the pool so the GPU keeps long free runs, and reports the free
-memory by run size. See [BUILD-NOTES.md](BUILD-NOTES.md). Title PPSA99862, content version 00.005.062.
+0.62rc ran a 101-minute console session with the pool full but alive (about 600 MiB free in runs of
+2 MiB or more, a largest free run of 36 MiB). 0.63rc changes no memory behaviour: it counts the
+driver's refused direct-memory requests, which are the first probe of a large block before the driver
+takes it in chunks, and stops them from filling the event ring. See [BUILD-NOTES.md](BUILD-NOTES.md).
+Title PPSA99862, content version 00.005.063.
 
 Hardware stability, geometry and sustained 30 FPS remain unqualified.
 

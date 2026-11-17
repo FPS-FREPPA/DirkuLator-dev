@@ -83,6 +83,7 @@ int eden_direct_low(size_t, size_t, int, int64_t*);
 int eden_direct_high(size_t, size_t, int, int64_t*);
 int __wrap_sceKernelAllocateDirectMemory(int64_t, int64_t, size_t, size_t, int, int64_t*);
 int __wrap_sceKernelReleaseDirectMemory(int64_t, size_t);
+uint64_t eden_direct_events_failed(uint64_t*);
 }
 
 #include "PRODUCTION"
@@ -179,6 +180,22 @@ int main(int argc, char** argv) {
         filler.push_back(more);                                                  // fill the region with 2 MiB blocks
     const int64_t fallback = take_low(16 * 1024, 16 * 1024);
     assert(fallback >= 0 && fallback < CrumbFrom);                               // below the region: the old placement
+    // 0.63rc: a refusal repeated within a second is counted, listed once.
+    {
+        uint64_t repeated0 = 0, repeated1 = 0;
+        const uint64_t failed0 = eden_direct_events_failed(&repeated0);
+        for (int i = 0; i < 1000; ++i) {
+            int64_t none = -1;
+            assert(__wrap_sceKernelAllocateDirectMemory(0, Total, size_t(Total) * 2, 2 * MiB, 12, &none) != 0);
+        }
+        const uint64_t failed1 = eden_direct_events_failed(&repeated1);
+        assert(failed1 - failed0 == 1000);
+        assert(repeated1 - repeated0 >= 999 && repeated1 - repeated0 <= 1000);   // all but the first one listed
+        int64_t none = -1;
+        assert(__wrap_sceKernelAllocateDirectMemory(0, Total, size_t(Total) * 3, 2 * MiB, 12, &none) != 0);
+        uint64_t repeated2 = 0;
+        assert(eden_direct_events_failed(&repeated2) == failed1 + 1 && repeated2 == repeated1);   // another size: listed
+    }
     std::puts(off ? "PASS crumb placement with packing off" : "PASS crumb placement: packed into the top 3 GiB, fallback when full");
     return 0;
 }

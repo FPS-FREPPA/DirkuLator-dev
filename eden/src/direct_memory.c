@@ -61,6 +61,16 @@ static _Atomic uint64_t eden_dmem_next;
 static _Atomic int64_t eden_dmem_held;
 static uint64_t eden_dmem_printed; /* the memory report's thread only */
 
+/* 0.63rc: a refused request is listed once while it repeats. The driver asks for a large block in one
+ * piece first and, refused, takes it in chunks (radv_ps5_memory_alloc_chunked), so the 0.62rc follow-up
+ * run (101 min, 11.7 GiB held) logged 3410 FAILED events, 756 of them the same 36 MiB request from the
+ * same caller, which pushed the allocations and releases out of the 4096-event ring. Every refusal is
+ * still counted; a refusal equal to the last one listed (same size, same caller) within a second is
+ * counted as repeated and not listed. */
+static _Atomic uint64_t eden_dmem_failed_total, eden_dmem_failed_repeated;
+static _Atomic uint64_t eden_dmem_failed_key;
+static _Atomic int64_t eden_dmem_failed_ns;
+
 static void eden_dmem_record(int kind, int path, int64_t start, size_t size, const void *caller) {
   int64_t held = atomic_load_explicit(&eden_dmem_held, memory_order_relaxed);
   if (kind == EDEN_DMEM_ALLOC)
@@ -69,12 +79,24 @@ static void eden_dmem_record(int kind, int path, int64_t start, size_t size, con
     held = atomic_fetch_sub_explicit(&eden_dmem_held, (int64_t)size, memory_order_relaxed) - (int64_t)size;
   if (size < ((size_t)1 << 20) && kind != EDEN_DMEM_FAILED)
     return; /* counted, not listed */
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  const int64_t ns = (int64_t)now.tv_sec * 1000000000ll + now.tv_nsec;
+  if (kind == EDEN_DMEM_FAILED) {
+    const uint64_t key = (uint64_t)size * 0x9e3779b97f4a7c15ull ^ (uint64_t)(uintptr_t)caller;
+    atomic_fetch_add_explicit(&eden_dmem_failed_total, 1, memory_order_relaxed);
+    if (atomic_load_explicit(&eden_dmem_failed_key, memory_order_relaxed) == key &&
+        ns - atomic_load_explicit(&eden_dmem_failed_ns, memory_order_relaxed) < 1000000000ll) {
+      atomic_fetch_add_explicit(&eden_dmem_failed_repeated, 1, memory_order_relaxed);
+      return;
+    }
+    atomic_store_explicit(&eden_dmem_failed_key, key, memory_order_relaxed);
+    atomic_store_explicit(&eden_dmem_failed_ns, ns, memory_order_relaxed);
+  }
   const uint64_t seq = atomic_fetch_add_explicit(&eden_dmem_next, 1, memory_order_relaxed) + 1;
   struct eden_dmem_event *event = &eden_dmem_events[seq % EDEN_DMEM_EVENTS];
   atomic_store_explicit(&event->seq, 0, memory_order_relaxed);
-  struct timespec now;
-  clock_gettime(CLOCK_MONOTONIC, &now);
-  event->ns = (int64_t)now.tv_sec * 1000000000ll + now.tv_nsec;
+  event->ns = ns;
   event->start = start;
   event->size = size;
   const uintptr_t text = (uintptr_t)__eden_text_start, at = (uintptr_t)caller;
@@ -96,6 +118,12 @@ static void eden_dmem_record(int kind, int path, int64_t start, size_t size, con
 }
 
 int64_t eden_direct_events_held(void) { return atomic_load_explicit(&eden_dmem_held, memory_order_relaxed); }
+
+/* Refusals so far, and how many of them were repeats left out of the list (0.63rc). */
+uint64_t eden_direct_events_failed(uint64_t *repeated) {
+  if (repeated) *repeated = atomic_load_explicit(&eden_dmem_failed_repeated, memory_order_relaxed);
+  return atomic_load_explicit(&eden_dmem_failed_total, memory_order_relaxed);
+}
 
 static const char *const eden_dmem_kinds[] = {"?", "alloc", "release", "FAILED"};
 static const char *const eden_dmem_paths[] = {"wrap", "high", "low"};

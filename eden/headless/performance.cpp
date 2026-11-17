@@ -491,6 +491,7 @@ extern "C" std::size_t eden_heap_large_held(unsigned* blocks) __attribute__((wea
 extern "C" void eden_heap_census_report(void) __attribute__((weak));
 // The direct-memory event ring (src/direct_memory.c, 041).
 extern "C" std::int64_t eden_direct_events_held(void) __attribute__((weak));
+extern "C" std::uint64_t eden_direct_events_failed(std::uint64_t* repeated) __attribute__((weak));
 extern "C" void eden_direct_events_print(void) __attribute__((weak));
 // Fiber stacks: alive, size, deepest use (src/common/fiber.cpp, layer 99zzzzu, every 30 s).
 extern "C" void eden_fiber_stacks_report(void) __attribute__((weak));
@@ -808,8 +809,13 @@ void ReportSessionMemory(const char* phase, unsigned session) {
     if (eden_direct_events_held) {
         const long long app = eden_direct_events_held();
         const long long used = total > 0 && free_bytes >= 0 ? total - free_bytes : -1;
-        std::printf("EDEN_DMEM_HELD t_ms=%ld app_mib=%lld pool_used_mib=%lld outside_app_mib=%lld\n", t_ms, app >> 20,
-                    used >= 0 ? used >> 20 : -1LL, used >= 0 ? (used - app) >> 20 : -1LL);
+        // 0.63rc: refusals of the app's direct-memory requests, and the repeats not listed one by one.
+        std::uint64_t repeated = 0;
+        const std::uint64_t failed = eden_direct_events_failed ? eden_direct_events_failed(&repeated) : 0;
+        std::printf("EDEN_DMEM_HELD t_ms=%ld app_mib=%lld pool_used_mib=%lld outside_app_mib=%lld "
+                    "refused=%llu refused_repeated=%llu\n",
+                    t_ms, app >> 20, used >= 0 ? used >> 20 : -1LL, used >= 0 ? (used - app) >> 20 : -1LL,
+                    static_cast<unsigned long long>(failed), static_cast<unsigned long long>(repeated));
     }
     std::fflush(stdout);
     if (eden_direct_events_print) eden_direct_events_print();
