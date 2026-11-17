@@ -86,7 +86,7 @@ diff --git a/src/audio_core/renderer/command/command_generator.cpp b/src/audio_c
 +#ifdef EDEN_NX2_PS5_PROTO
 +        if (sorted_info->in_use) {
 +            ++probe_in_use;
-+            if (sorted_info->current_play_state == ServerPlayState::Started) {
++            if (sorted_info->current_play_state == VoiceInfo::ServerPlayState::Started) {
 +                ++probe_started;
 +                if (sorted_info->wave_buffer_count == 0) ++probe_underrun;
 +            }
