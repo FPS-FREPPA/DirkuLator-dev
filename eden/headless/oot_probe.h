@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <set>
 #include <string>
@@ -75,7 +76,7 @@ private:
         return {};
     }
 
-    void Run(Kernel::KProcess* process, Core::Memory::Memory& m) {
+    void Run([[maybe_unused]] Kernel::KProcess* process, Core::Memory::Memory& m) {
         int tick = 0;
         u64 main_base = 0;
         int scans = 0;
@@ -85,10 +86,12 @@ private:
             ++tick;
             // The game's main module is found once the loader has mapped it; until then the answer is the start of the code
             // region (0.73rc asked too early and read from there).
-            const u64 code_region = static_cast<u64>(GetInteger(process->GetPageTable().GetCodeRegionStart()));
-            const u64 found_main = static_cast<u64>(GetInteger(Core::FindMainModuleEntrypoint(process)));
-            if (found_main == code_region || found_main == 0) {
-                if (tick % 10 == 1) std::fprintf(stderr, "EDEN_OOT_PROBE tick=%d main module not found yet\n", tick);
+            // Where the loader put main (CMakeLists.txt, EDEN_MAIN_BASE): the emulator's own module finder (Core::
+            // FindMainModuleEntrypoint) answers with the start of the code region for this game.
+            u64 found_main = 0;
+            if (const char* text = std::getenv("EDEN_MAIN_BASE")) found_main = std::strtoull(text, nullptr, 16);
+            if (found_main == 0) {
+                if (tick % 10 == 1) std::fprintf(stderr, "EDEN_OOT_PROBE tick=%d main module not loaded yet\n", tick);
                 continue;
             }
             if (found_main != main_base) {

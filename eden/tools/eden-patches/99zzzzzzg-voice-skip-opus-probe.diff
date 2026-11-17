@@ -1,0 +1,136 @@
+DirkuLator 0.77rc: EDEN_AUDIO_VOICES (voices in use, started, started with no wave buffer left, commanded) and EDEN_OPUS
+(decodes, failures, samples, longest decode), every five seconds. Tells a music voice the game stopped from one it did not refill
+in time, and whether the Opus stream is being decoded. Read-only, PS5 build only.
+
+
+diff --git a/src/audio_core/opus/decoder.cpp b/src/audio_core/opus/decoder.cpp
+--- a/src/audio_core/opus/decoder.cpp
++++ b/src/audio_core/opus/decoder.cpp
+@@ -109,6 +109,13 @@
+     R_SUCCEED();
+ }
+ 
++#ifdef EDEN_NX2_PS5_PROTO
++// 0.77rc EDEN_OPUS: per five seconds, the single-stream decodes the game asked for, those that failed, the samples out and
++// the longest decode. A music stream the game feeds late shows as a gap with no decodes.
++static std::atomic<u64> g_op_calls{0}, g_op_fail{0}, g_op_samples{0}, g_op_max_us{0};
++static std::atomic<s64> g_op_next{0};
++#endif
++
+ Result OpusDecoder::DecodeInterleaved(u32* out_data_size, u64* out_time_taken,
+                                       u32* out_sample_count, std::span<const u8> input_data,
+                                       std::span<u8> output_data, bool reset) {
+@@ -131,9 +138,38 @@
+ 
+     std::memcpy(in_data.data(), input_data.data() + sizeof(OpusPacketHeader), header.size);
+ 
++#ifdef EDEN_NX2_PS5_PROTO
++    g_op_calls.fetch_add(1, std::memory_order_relaxed);
++    const Result probe_result = hardware_opus.DecodeInterleaved(out_samples, out_data.data(), out_data.size_bytes(),
++                                                                channel_count, in_data.data(), header.size,
++                                                                shared_buffer.data(), time_taken, reset);
++    if (probe_result.IsError()) {
++        g_op_fail.fetch_add(1, std::memory_order_relaxed);
++    } else {
++        g_op_samples.fetch_add(out_samples, std::memory_order_relaxed);
++        u64 seen = g_op_max_us.load(std::memory_order_relaxed);
++        const u64 took = time_taken / 1000;
++        while (took > seen && !g_op_max_us.compare_exchange_weak(seen, took, std::memory_order_relaxed)) {}
++    }
++    {
++        const s64 now = std::chrono::duration_cast<std::chrono::seconds>(
++                            std::chrono::steady_clock::now().time_since_epoch()).count();
++        if (s64 next = g_op_next.load(std::memory_order_relaxed);
++            now >= next && g_op_next.compare_exchange_strong(next, now + 5)) {
++            std::fprintf(stderr, "EDEN_OPUS decodes=%llu failed=%llu samples=%llu max_us=%llu channels=%u\n",
++                         static_cast<unsigned long long>(g_op_calls.exchange(0, std::memory_order_relaxed)),
++                         static_cast<unsigned long long>(g_op_fail.exchange(0, std::memory_order_relaxed)),
++                         static_cast<unsigned long long>(g_op_samples.exchange(0, std::memory_order_relaxed)),
++                         static_cast<unsigned long long>(g_op_max_us.exchange(0, std::memory_order_relaxed)),
++                         static_cast<unsigned>(channel_count));
++        }
++    }
++    R_TRY(probe_result);
++#else
+     R_TRY(hardware_opus.DecodeInterleaved(out_samples, out_data.data(), out_data.size_bytes(),
+                                           channel_count, in_data.data(), header.size,
+                                           shared_buffer.data(), time_taken, reset));
++#endif
+ 
+     std::memcpy(output_data.data(), out_data.data(), out_samples * channel_count * sizeof(s16));
+ 
+diff --git a/src/audio_core/renderer/command/command_generator.cpp b/src/audio_core/renderer/command/command_generator.cpp
+--- a/src/audio_core/renderer/command/command_generator.cpp
++++ b/src/audio_core/renderer/command/command_generator.cpp
+@@ -275,15 +275,38 @@
+     }
+ }
+ 
++#ifdef EDEN_NX2_PS5_PROTO
++// 0.77rc EDEN_AUDIO_VOICES: per five seconds, averaged over the renders: voices in use, voices the game has started, started
++// voices with no wave buffer left (an underrun: the game did not refill them in time) and voices commanded to decode.
++static std::atomic<u64> g_vs_renders{0}, g_vs_in_use{0}, g_vs_started{0}, g_vs_underrun{0}, g_vs_commanded{0},
++    g_vs_max_started{0};
++static std::atomic<s64> g_vs_next{0};
++#endif
++
+ void CommandGenerator::GenerateVoiceCommands() {
+     const auto voice_count{voice_context.GetCount()};
++#ifdef EDEN_NX2_PS5_PROTO
++    u64 probe_in_use = 0, probe_started = 0, probe_underrun = 0, probe_commanded = 0;
++#endif
+ 
+     for (u32 i = 0; i < voice_count; i++) {
+         auto sorted_info{voice_context.GetSortedInfo(i)};
+ 
++#ifdef EDEN_NX2_PS5_PROTO
++        if (sorted_info->in_use) {
++            ++probe_in_use;
++            if (sorted_info->current_play_state == ServerPlayState::Started) {
++                ++probe_started;
++                if (sorted_info->wave_buffer_count == 0) ++probe_underrun;
++            }
++        }
++#endif
+         if (sorted_info->ShouldSkip() || !sorted_info->UpdateForCommandGeneration(voice_context)) {
+             continue;
+         }
++#ifdef EDEN_NX2_PS5_PROTO
++        ++probe_commanded;
++#endif
+ 
+         EntryAspect voice_entry_aspect(*this, PerformanceEntryType::Voice, sorted_info->node_id);
+ 
+@@ -297,6 +320,32 @@
+     }
+ 
+     splitter_context.UpdateInternalState();
++#ifdef EDEN_NX2_PS5_PROTO
++    {
++        g_vs_renders.fetch_add(1, std::memory_order_relaxed);
++        g_vs_in_use.fetch_add(probe_in_use, std::memory_order_relaxed);
++        g_vs_started.fetch_add(probe_started, std::memory_order_relaxed);
++        g_vs_underrun.fetch_add(probe_underrun, std::memory_order_relaxed);
++        g_vs_commanded.fetch_add(probe_commanded, std::memory_order_relaxed);
++        u64 seen = g_vs_max_started.load(std::memory_order_relaxed);
++        while (probe_started > seen &&
++               !g_vs_max_started.compare_exchange_weak(seen, probe_started, std::memory_order_relaxed)) {}
++        const s64 now = std::chrono::duration_cast<std::chrono::seconds>(
++                            std::chrono::steady_clock::now().time_since_epoch()).count();
++        if (s64 next = g_vs_next.load(std::memory_order_relaxed);
++            now >= next && g_vs_next.compare_exchange_strong(next, now + 5)) {
++            const u64 renders = (std::max<u64>)(g_vs_renders.exchange(0, std::memory_order_relaxed), 1);
++            std::fprintf(stderr,
++                         "EDEN_AUDIO_VOICES renders=%llu in_use_avg=%.1f started_avg=%.1f started_max=%llu underrun_avg=%.2f commanded_avg=%.1f\n",
++                         static_cast<unsigned long long>(renders),
++                         g_vs_in_use.exchange(0, std::memory_order_relaxed) / double(renders),
++                         g_vs_started.exchange(0, std::memory_order_relaxed) / double(renders),
++                         static_cast<unsigned long long>(g_vs_max_started.exchange(0, std::memory_order_relaxed)),
++                         g_vs_underrun.exchange(0, std::memory_order_relaxed) / double(renders),
++                         g_vs_commanded.exchange(0, std::memory_order_relaxed) / double(renders));
++        }
++    }
++#endif
+ }
+ 
+ void CommandGenerator::GenerateBufferMixerCommand(const s16 buffer_offset,

@@ -1506,6 +1506,11 @@ if(PS5_NATIVE)
             std::fprintf(stderr, "[DirkuLator] cheats: %zu entries for main (build ID %s) at %#llx (%llu bytes)\n",
                          cheats.size(), build, static_cast<unsigned long long>(load_base),
                          static_cast<unsigned long long>(image_size));
+            // 0.76rc: where main was loaded, for the Ocarina of Time probe (oot_probe.h): the emulator's module finder does not
+            // find this game's main module, the loader knows it.
+            char base_text[32]{};
+            std::snprintf(base_text, sizeof(base_text), "%llx", static_cast<unsigned long long>(load_base));
+            ::setenv("EDEN_MAIN_BASE", base_text, 1);
         }
         if (name == "main" && !cheats.empty()) {
             system.RegisterCheatList(cheats, nso_header.build_id, load_base, image_size);]=])
