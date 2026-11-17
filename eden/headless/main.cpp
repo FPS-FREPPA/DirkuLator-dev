@@ -65,6 +65,7 @@
 #include "cache_budget.h"
 #include "performance.h"
 #include "perf_monitor.h"
+#include "pc_sampler.h"
 #include "stall_watchdog.h"
 #include "thread_dump.h"
 #include "dev_vulkan.h"
@@ -416,6 +417,11 @@ int main(int argc, char** argv) {
     } else {
         std::fprintf(stderr, "EDEN_MUSIC on (music-off.txt mutes it)\n");
     }
+    // 0.68rc: /data/eden-nx2/pc-sample.txt switches the release-safe PC sampler of the GPU threads on
+    // (pc_sampler.h, EDEN_PC_SAMPLES every 10 s). Off otherwise; started before any guest thread exists.
+#ifndef EDEN_DEV_PROFILE
+    Eden::PcSampler::Init(std::string{Eden::kDataDir});
+#endif
     // /data/eden-nx2/unified-memory.txt: images, device-local and upload buffers share the device
     // local, host visible memory types (vulkan_memory_allocator.cpp, layer 99zzzzi), so one kind of
     // allocation can use the room another left inside the allocator's blocks.

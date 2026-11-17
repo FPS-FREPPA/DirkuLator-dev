@@ -2,6 +2,7 @@
 #include "performance.h"
 #include "cpu_policy.h"
 #include "crash_report.h"
+#include "pc_sampler.h"
 #include "stall_watchdog.h"
 #ifdef PS5_NATIVE
 #include "boot_trace.h"
@@ -1111,6 +1112,9 @@ extern "C" const char* eden_thread_name_of(std::uintptr_t thread) noexcept {
 
 void RegisterWorker(const char* name) {
     Eden::Crash::NameThread(name);  // a crash report names the thread
+#ifndef EDEN_DEV_PROFILE
+    Eden::PcSampler::NoteThread(name);  // 0.68rc: the release-safe PC sampler (pc_sampler.h), off by default
+#endif
 #if defined(EDEN_DEV_PROFILE) && defined(PS5_NATIVE)
     Eden::Stall::NoteThread(name);
 #endif
