@@ -1,7 +1,7 @@
-DirkuLator 0.60rc: the game's music is not played. A voice that loops a wave buffer for ever (loop_count < 0)
-is still decoded, so its state and timing are unchanged, but its output is silenced. Ambient loops go with it.
-EDEN_MUSIC_MUTED logs the first and every doubling of voice updates silenced. /data/eden-nx2/music-on.txt
-(main.cpp sets EDEN_NX2_MUSIC_ON) plays the music again.
+DirkuLator 0.66rc: the game's music plays. A voice that loops a wave buffer for ever (loop_count < 0) is counted;
+with /data/eden-nx2/music-off.txt (main.cpp sets EDEN_NX2_MUSIC_OFF) its output is silenced as in 0.60rc to 0.65rc.
+EDEN_MUSIC_PLAYING / EDEN_MUSIC_MUTED log the first and every doubling of those voice updates.
+Ambient loops are counted with the music.
 
 diff --git a/src/audio_core/renderer/command/data_source/decode.cpp b/src/audio_core/renderer/command/data_source/decode.cpp
 --- a/src/audio_core/renderer/command/data_source/decode.cpp
@@ -20,10 +20,10 @@ diff --git a/src/audio_core/renderer/command/data_source/decode.cpp b/src/audio_
      }
  #endif
 +#ifdef EDEN_NX2_PS5_PROTO
-+    // DirkuLator 0.60rc: the game's music is not played. Music is a voice looping a wave buffer
-+    // for ever (loop_count < 0); it is decoded as before, so voice state and timing do not
-+    // change, and only its output is silenced. /data/eden-nx2/music-on.txt plays it again.
-+    static const bool music_on = std::getenv("EDEN_NX2_MUSIC_ON") != nullptr;
++    // DirkuLator 0.66rc: music plays; a voice looping a wave buffer for ever (loop_count < 0) is
++    // counted and logged. /data/eden-nx2/music-off.txt silences its output, decoded as before so
++    // voice state and timing do not change (the 0.60rc to 0.65rc behaviour).
++    static const bool music_on = std::getenv("EDEN_NX2_MUSIC_OFF") == nullptr;
 +    static std::atomic<u64> music_muted{};
 +    bool music_voice = false;
 +#endif
@@ -47,12 +47,12 @@ diff --git a/src/audio_core/renderer/command/data_source/decode.cpp b/src/audio_
      }
  
 +#ifdef EDEN_NX2_PS5_PROTO
-+    if (music_voice && !music_on) {
-+        std::memset(args.output.data(), 0, args.output.size_bytes());
-+        const u64 muted = music_muted.fetch_add(1, std::memory_order_relaxed) + 1;
-+        if ((muted & (muted - 1)) == 0) {
-+            std::fprintf(stderr, "EDEN_MUSIC_MUTED voice updates=%llu (music-on.txt plays it)\n",
-+                         static_cast<unsigned long long>(muted));
++    if (music_voice) {
++        if (!music_on) std::memset(args.output.data(), 0, args.output.size_bytes());
++        const u64 counted = music_muted.fetch_add(1, std::memory_order_relaxed) + 1;
++        if ((counted & (counted - 1)) == 0) {
++            std::fprintf(stderr, "EDEN_MUSIC_%s voice updates=%llu (music-off.txt mutes it)\n",
++                         music_on ? "PLAYING" : "MUTED", static_cast<unsigned long long>(counted));
 +        }
 +    }
 +#endif
