@@ -4,7 +4,7 @@
 Downloads, into a new folder:
 - the core log, stderr and boot trace;
 - the native shaders the translator rejected (logs/rejected-shaders/, written by default);
-- the newest PPSA99862 screenshot, converted from JPEG XR to JPEG if `imagecodecs` and Pillow
+- the newest PPSA99863 screenshot, converted from JPEG XR to JPEG if `imagecodecs` and Pillow
   are installed.
 
 Then it writes report.json and report.txt. They list the installed version, every rejected
@@ -34,8 +34,8 @@ import sys
 from pathlib import Path
 
 DATA = '/data/eden-nx2'
-APP = '/data/homebrew/PPSA99862'
-PHOTOS = '/user/av_contents/photo/NPXS40087/PPSA99862'
+APP = '/data/homebrew/PPSA99863'
+PHOTOS = '/user/av_contents/photo/NPXS40087/PPSA99863'
 FILES = {
     'eden_log.txt': f'{DATA}/user/log/eden_log.txt',
     'stderr.log': f'{DATA}/logs/stderr.log',

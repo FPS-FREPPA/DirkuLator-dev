@@ -105,6 +105,7 @@ meson-info/
 *.vhdx
 eboot.bin
 /PPSA99862/
+/PPSA99863/
 /DirkuLator-[0-9]*/
 /release-artifacts/
 

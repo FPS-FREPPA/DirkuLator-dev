@@ -13,7 +13,7 @@ controller input, repeatable builds, and evidence-based debugging.
 This repository contains the current working source and patch set. **0.5.54rc is a
 development release candidate, not a stable compatibility release.** Its PS5
 content version is `00.005.054` and its application title is **DirkuLator**
-(`PPSA99862`). The `rc` designation belongs to the release tag and archive name;
+(`PPSA99863`). The `rc` designation belongs to the release tag and archive name;
 the console requires a numeric content version.
 
 The native build, package checks, and component sanitizer regressions passed.
@@ -52,7 +52,7 @@ and the port patches are in `eden/UPSTREAM.json`, `eden/tools/deps.json`, and
 [BUILDING.md](docs/BUILDING.md). Dependencies remain pinned; the initial
 snapshot does not silently adopt unrelated upstream changes.
 
-Build output is `eden/build/release/PPSA99862`. Use a published candidate's
+Build output is `eden/build/release/PPSA99863`. Use a published candidate's
 checksums and validation notes before installing it. Development code can fail,
 render incorrectly, or affect game progress; keep backups of your own data.
 

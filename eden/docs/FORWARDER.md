@@ -1,7 +1,7 @@
 # Starting a game from a home screen forwarder
 
 A forwarder is a separate small app with its own home screen tile (its own title ID, icon and
-name). When it is opened, it launches DirkuLator (`PPSA99862`) with launch arguments, and
+name). When it is opened, it launches DirkuLator (`PPSA99863`) with launch arguments, and
 DirkuLator starts that game directly instead of opening its launcher.
 
 ## Arguments

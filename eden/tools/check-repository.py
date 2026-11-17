@@ -22,7 +22,7 @@ def digest(path):
 
 
 ignored = [
-    'eden/build/release/PPSA99862/eboot.bin', 'eden/.deps/input/LICENSE',
+    'eden/build/release/PPSA99862/eboot.bin', 'eden/build/release/PPSA99863/eboot.bin', 'eden/.deps/input/LICENSE',
     'eden/.local/headless-cache', '.cache/download', 'build-native/object.o',
     'cmake-build-debug/CMakeCache.txt', 'CMakeUserPresets.json', 'compile_commands.json',
     'nested/build.ninja', 'nested/.ninja_log', 'nested/meson-private/coredata.dat',
@@ -36,7 +36,7 @@ ignored = [
     'library.a', 'program.exe', 'symbols.pdb', 'cache.spv', 'coverage/report.html',
     'profile.profraw', 'debug.log', 'file.cpp.orig', 'file.diff.rej', 'Thumbs.db',
     '.tools/compiler/data', '.wsl/build.vhdx', '.aws/credentials', '.ssh/config',
-    '.codex/auth.json', 'PPSA99862/eboot.bin', 'DirkuLator-0.5.54rc/PPSA99862/eboot.bin',
+    '.codex/auth.json', 'PPSA99862/eboot.bin', 'PPSA99863/eboot.bin', 'DirkuLator-0.5.54rc/PPSA99862/eboot.bin',
     'input-bridge-status.json', 'capture-now.txt', 'perf-monitor.csv',
 ]
 retained = [

@@ -102,7 +102,7 @@ with tempfile.TemporaryDirectory(prefix='eden-run-summary-') as work:
     work = Path(work)
     (work / 'data' / 'logs').mkdir(parents=True)
     (work / 'install' / 'sce_sys').mkdir(parents=True)
-    (work / 'install' / 'sce_sys' / 'param.json').write_text('{"titleId": "PPSA99862", "contentVersion": "00.005.069"}')
+    (work / 'install' / 'sce_sys' / 'param.json').write_text('{"titleId": "PPSA99863", "contentVersion": "00.005.069"}')
     (work / 'check.cpp').write_text(fixture)
     subprocess.run(['clang++-18', '-std=c++20', '-O1', '-g', '-Wall', '-fsanitize=address,undefined',
                     '-fno-sanitize-recover=all', f'-I{root / "headless"}', str(work / 'check.cpp'), '-o',

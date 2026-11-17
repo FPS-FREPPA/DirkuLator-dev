@@ -1,7 +1,7 @@
 {
   "name": "DirkuLator",
-  "version": "0.77rc",
-  "content_version": "00.005.077",
+  "version": "0.78rc",
+  "content_version": "00.005.078",
   "channel": "development",
   "native_build_verified": false,
   "component_tests_passed": false,

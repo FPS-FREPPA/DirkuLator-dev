@@ -18,7 +18,7 @@ PS5_HOST ?=
 PS5_PORT ?= 2121
 
 PYTHON := python3 -B
-RELEASE_APP := build/release/PPSA99862
+RELEASE_APP := build/release/PPSA99863
 
 .PHONY: help release package dev prepare deps deps-status toolchain test install clean distclean
 
@@ -35,10 +35,10 @@ help: ## List the targets and variables
 release: package ## Release files in dist/: ZIP, SHA256SUMS, release notes (default)
 	$(PYTHON) tools/ci/make-dist.py $(RELEASE_APP)
 
-package: prepare ## Build the app as released: build/release/PPSA99862
+package: prepare ## Build the app as released: build/release/PPSA99863
 	bash tools/build-package.sh release
 
-dev: prepare ## Development build that boots DEV_TITLE: build/dev/PPSA99862
+dev: prepare ## Development build that boots DEV_TITLE: build/dev/PPSA99863
 	@[[ -n "$(DEV_TITLE)" ]] || { echo 'Set DEV_TITLE=<16-digit title ID> (or write it to .local/dev-profile-title)'; exit 2; }
 	bash tools/build-package.sh dev $(DEV_TITLE)
 

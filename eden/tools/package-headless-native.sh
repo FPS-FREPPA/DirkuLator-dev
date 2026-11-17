@@ -9,11 +9,11 @@ scratch=$(cat "$root/.local/headless-cache")
 template="$root/../ps5-native-app-boilerplate"
 builder="$root/build/host/ps5-native-tool"
 out="$root/build/headless-native"
-app="${EDEN_PACKAGE_DIR:-$root/dist/headless/PPSA99862}"
+app="${EDEN_PACKAGE_DIR:-$root/dist/headless/PPSA99863}"
 # A separate clean staging directory lets driver candidates omit private game
 # assets without deleting or copying the existing development installation.
 if [[ -n ${EDEN_PACKAGE_DIR:-} ]]; then
-    [[ $(realpath -m "$app") == "$(realpath -m "$root")"/build/*/PPSA99862 ]] || exit 2
+    [[ $(realpath -m "$app") == "$(realpath -m "$root")"/build/*/PPSA99863 ]] || exit 2
     [[ ${1:-} != --game ]] || exit 2
 fi
 test -x "$builder"
@@ -78,8 +78,8 @@ if game:
     assert (app / 'game-assets.json').is_file()
     assert (app / 'assets/keys/prod.keys').is_file()
 value = json.loads((app / 'sce_sys/param.json').read_text())
-assert (value['titleId'], value['conceptId']) == ('PPSA99862', '99862')
-assert value['contentId'] == 'UP9000-PPSA99862_00-EDENNX2PROTO0001'
+assert (value['titleId'], value['conceptId']) == ('PPSA99863', '99863')
+assert value['contentId'] == 'UP9000-PPSA99863_00-EDENNX2PROTO0001'
 assert value['localizedParameters']['en-US']['titleName'] == 'DirkuLator'
 assert value['pubtools']['loudnessSnd0'] == '-28.00'
 # The app version has one home, sce_sys/param.json: the program was built with the same value.

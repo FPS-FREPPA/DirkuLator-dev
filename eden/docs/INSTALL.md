@@ -57,18 +57,18 @@ DirkuLator keeps its own data in `/data/eden-nx2`, separately from the game file
 ├── backup/save-sync/                   # save data the save sync replaced, the last three per game
 ├── covers/                             # cached game covers
 ├── logs/                               # current and previous session logs, crash reports
-├── previous-version/PPSA99862-backup/  # the version the last self-update replaced
+├── previous-version/PPSA99863-backup/  # the version the last self-update replaced
 └── user/                               # every profile's saves, and emulator user data
     └── lossless/Lossless.dll           # optional: your copy, for frame generation
 ```
 
-The app itself stays in `/data/homebrew/PPSA99862`; see [Updating](#updating).
+The app itself stays in `/data/homebrew/PPSA99863`; see [Updating](#updating).
 
 DirkuLator does not include keys, firmware, games, or other copyrighted console data. Dump these files from hardware and software you own. Do not download or redistribute them.
 
 This is the only place it keeps them. If DirkuLator cannot get access to the console's storage when it starts, the home screen says so and no game can be started; your data is untouched, and closing DirkuLator and opening it again is the first thing to try. Earlier versions kept a second set of settings and saves in the app's own sandbox in that case, which made saves and settings seem to disappear on consoles where access came and went.
 
-Keys, firmware and games that an early version kept inside the app's folder (`/data/homebrew/PPSA99862/assets`) are moved to `/data/eden-nx2` the first time this version starts, so that replacing the app cannot remove them.
+Keys, firmware and games that an early version kept inside the app's folder (`/data/homebrew/PPSA99863/assets`) are moved to `/data/eden-nx2` the first time this version starts, so that replacing the app cannot remove them.
 
 ## Updating
 
@@ -84,18 +84,18 @@ To stay on a version without being asked at every start, turn off **Settings > D
 
 If the download or the unpacking fails, the dialog says why and offers **Try again**; the app stays as it was. Without a network, or without an answer, nothing is shown. When DirkuLator cannot install the release itself (no payload loader, or an install it cannot find), the menu says **Update available** at the top right for ten seconds instead, and the steps below still work:
 
-- **Folder install.** Copy the `PPSA99862` folder from the new release ZIP over `/data/homebrew/PPSA99862`, replacing the files it has, then start DirkuLator. Files you put there yourself, such as `language.txt`, stay.
+- **Folder install.** Copy the `PPSA99863` folder from the new release ZIP over `/data/homebrew/PPSA99863`, replacing the files it has, then start DirkuLator. Files you put there yourself, such as `language.txt`, stay.
 
 ## Going back to the previous version
 
-When DirkuLator updates itself, the files of the version it replaces are kept in `/data/eden-nx2/previous-version/PPSA99862-backup`, until the next update replaces them in turn. If a new version misbehaves, you can put the previous one back:
+When DirkuLator updates itself, the files of the version it replaces are kept in `/data/eden-nx2/previous-version/PPSA99863-backup`, until the next update replaces them in turn. If a new version misbehaves, you can put the previous one back:
 
 1. Close DirkuLator.
-2. Copy everything inside `/data/eden-nx2/previous-version/PPSA99862-backup` over the app's folder (`/data/homebrew/PPSA99862`), replacing the files it has, for example over FTP.
+2. Copy everything inside `/data/eden-nx2/previous-version/PPSA99863-backup` over the app's folder (`/data/homebrew/PPSA99863`), replacing the files it has, for example over FTP.
 3. Start DirkuLator. The About screen shows the version that is running.
 
 The update will be offered again the next time DirkuLator opens; choose **Skip** to stay on the version you put back. Settings, saves and game files are not part of this: they stay as they are. An update done by hand, by copying a release over the app's folder, keeps no previous version.
 
 ## Upgrading from an earlier alpha
 
-Earlier versions read everything from `/data/homebrew/PPSA99862/assets/`. That folder keeps working until you choose a game files folder, and settings are migrated automatically on first launch. To move to the new layout, move `assets/keys`, `assets/firmware` and `assets/roms` into any folder, then select it in **Settings > Game files**. The release ZIP contains no user files, so copy its app files over your installation without deleting your own data.
+Earlier versions read everything from `/data/homebrew/PPSA99863/assets/`. That folder keeps working until you choose a game files folder, and settings are migrated automatically on first launch. To move to the new layout, move `assets/keys`, `assets/firmware` and `assets/roms` into any folder, then select it in **Settings > Game files**. The release ZIP contains no user files, so copy its app files over your installation without deleting your own data.

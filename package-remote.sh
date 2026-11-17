@@ -11,9 +11,9 @@ ssh "$EDGLANTINE_BUILD_HOST" bash -s -- "$version" "$EDGLANTINE_REMOTE_ROOT" <<'
 set -euo pipefail
 docker run --rm --name eden-nx2-package-20261030 \
   -v "$2:/work" -w /work/eden \
-  -e XDG_CACHE_HOME=/work/cache -e EDEN_PACKAGE_DIR=/work/eden/build/release/PPSA99862 \
+  -e XDG_CACHE_HOME=/work/cache -e EDEN_PACKAGE_DIR=/work/eden/build/release/PPSA99863 \
   -e NX2_PACKAGE_VERSION="$1" botty-standalone-build bash -lc \
-  'bash tools/package-headless-native.sh --integration && python3 tests-nx2/check-isolation.py build/release/PPSA99862 && cd build/release && tar -czf "/work/Eden-NX2-PS5-prototype-${NX2_PACKAGE_VERSION}.tar.gz" PPSA99862' \
+  'bash tools/package-headless-native.sh --integration && python3 tests-nx2/check-isolation.py build/release/PPSA99863 && cd build/release && tar -czf "/work/Eden-NX2-PS5-prototype-${NX2_PACKAGE_VERSION}.tar.gz" PPSA99863' \
   > "$2/package.log" 2>&1
 REMOTE
 mkdir -p "artifacts/$version"

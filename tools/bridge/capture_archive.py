@@ -258,7 +258,7 @@ def main():
                     live = output / 'sessions' / session / 'live-logs'
                     try:
                         previous = ftp.pwd()
-                        ftp.cwd('/mnt/sandbox/PPSA99862_000')
+                        ftp.cwd('/mnt/sandbox/PPSA99863_000')
                         active = True
                         ftp.cwd(previous)
                     except error_perm:

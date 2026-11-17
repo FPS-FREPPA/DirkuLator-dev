@@ -112,7 +112,7 @@ focused regressions. These checks do not validate PS5 pixels or video playback.
 
 Native PS5 compilation and packaging: **PASS** on `dedie`. Sparse-header and
 multiplayer-header consistency checks, source identity/isolation and packaged
-PPSA99862 identity checks passed. The existing real scheduler/upload-guard test
+PPSA99863 identity checks passed. The existing real scheduler/upload-guard test
 also passed **262,144 mixed events under ASan/UBSan**. The native build retains
 PGO; unmatched desktop-profile control-flow records are discarded by Clang and
 remain visible in the log.
@@ -121,9 +121,9 @@ The isolated root is `/tmp/edglantine-upstream-opt-20261102`; local artifacts an
 `artifacts/upstream-opt-20261102/`: the `.tar.gz` package, exact
 `upstream-opt.llvm-pie.elf`, `build.log`, `snapshot-regression.log`,
 `source-provenance.txt` and `validation-summary.json` (hashes and validation).
-PGO and PPSA99862 are preserved. The user then requested installation and
+PGO and PPSA99863 are preserved. The user then requested installation and
 confirmed the application and launcher were fully closed. All 69 companion files
-matched the package. Only `/data/homebrew/PPSA99862/eboot.bin` was replaced with
+matched the package. Only `/data/homebrew/PPSA99863/eboot.bin` was replaced with
 verified staging, preserved permissions and rename. The previous executable is
 retained at `/data/ps5-diag/edglantine-upstream-opt-26f2d97292e9/eboot.bin`.
 Journal: `artifacts/upstream-opt-20261102/install-journal.json`.

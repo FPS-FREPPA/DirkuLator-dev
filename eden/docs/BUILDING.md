@@ -9,7 +9,7 @@ make
 The first run fetches every dependency at its pinned revision, builds the RADV driver and
 Eden for the PS5, and writes the release files to `dist/`:
 
-- `DirkuLator-vX.Y.Z.zip`: the `PPSA99862` folder to copy to `/data/homebrew/PPSA99862`;
+- `DirkuLator-vX.Y.Z.zip`: the `PPSA99863` folder to copy to `/data/homebrew/PPSA99863`;
 - `SHA256SUMS` (the ZIP's checksum) and `release-notes.md`.
 
 The app package includes an exact-title one-shot helper built from the pinned upstream
@@ -38,9 +38,9 @@ already exists: the dependencies, this checkout's build cache in
 | Target | What it does |
 |---|---|
 | `make` / `make release` | Release files in `dist/` |
-| `make package` | Only the app folder, `build/release/PPSA99862` |
-| `make install PS5_HOST=<address>` | Copy `build/release/PPSA99862` to a console over FTP (close DirkuLator first) |
-| `make dev DEV_TITLE=<title ID>` | Development build, `build/dev/PPSA99862` (or `EDEN_DEV_PACKAGE_DIR`): profiling counters, `dev-settings.txt` switches, boots the given title |
+| `make package` | Only the app folder, `build/release/PPSA99863` |
+| `make install PS5_HOST=<address>` | Copy `build/release/PPSA99863` to a console over FTP (close DirkuLator first) |
+| `make dev DEV_TITLE=<title ID>` | Development build, `build/dev/PPSA99863` (or `EDEN_DEV_PACKAGE_DIR`): profiling counters, `dev-settings.txt` switches, boots the given title |
 | `make test` | Host (Linux) build of the emulator and its test suites |
 | `make deps` | Fetch missing dependencies at their pinned revisions |
 | `make deps-status` | List the dependencies, where they live and whether they match their pins |
