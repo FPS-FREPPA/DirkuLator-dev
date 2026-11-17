@@ -698,10 +698,11 @@ int main(int argc, char** argv) {
         }
         // One-click start (DirkuLator 0.5.14): opening the app from the PS5 menu starts the last game
         // played, else the only game in roms, without the launcher; leaving the game opens the
-        // launcher. Not after a crash restart (the launcher shows the report instead of the same
-        // crash again), and not while /data/eden-nx2/launcher-first.txt exists.
+        // launcher. Since 0.70rc it is OFF: the launcher opens, and the one-click start only happens
+        // while /data/eden-nx2/autostart.txt exists (test tooling creates it). Never after a crash
+        // restart (the launcher shows the report instead of the same crash again).
         if (forwarded.rom.empty() && !last_crash.restarted &&
-            !Eden::FileExists(Eden::AppFile("launcher-first.txt"))) {
+            Eden::FileExists(Eden::AppFile("autostart.txt"))) {
             const std::string roms = Eden::AssetsPath("roms");
             std::string path;
             if (const std::string last = Eden::LoadLastGame(); !last.empty()) {

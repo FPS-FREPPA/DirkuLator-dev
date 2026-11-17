@@ -187,10 +187,10 @@ int main() {
     std::ofstream(unknown_refresh) << R"({"video": {"refresh_rate": "144"}})";
     assert(Eden::LoadPreferences(unknown_refresh).refresh == 0);
 
-    // Output resolution (Settings > Video): 1080p unless another size is chosen; other values are
-    // refused or read as 1080p.
+    // Output resolution (Settings > Video): 1440p (since 0.70rc) unless another size is chosen; other values are
+    // refused or read as the default.
     video = Eden::LoadPreferences(file);
-    assert(video.output == 0 && Eden::kOutputWidth[video.output] == 1920 && Eden::kOutputHeight[video.output] == 1080);
+    assert(video.output == Eden::kDefaultOutput && Eden::kOutputWidth[video.output] == 2560 && Eden::kOutputHeight[video.output] == 1440);
     video.output = 2;
     assert(Eden::SavePreferences(video, file));
     video = Eden::LoadPreferences(file);
@@ -200,7 +200,7 @@ int main() {
     assert(!Eden::SavePreferences(video, file));
     const std::string unknown_output = std::string(directory) + "/unknown-output.json";
     std::ofstream(unknown_output) << R"({"video": {"output_resolution": "720p"}})";
-    assert(Eden::LoadPreferences(unknown_output).output == 0);
+    assert(Eden::LoadPreferences(unknown_output).output == Eden::kDefaultOutput);
 
     // Frame generation (Settings > Video): off unless chosen, and a switch, so the file holds a
     // boolean. Vulkan only, but the setting itself is stored like any other.

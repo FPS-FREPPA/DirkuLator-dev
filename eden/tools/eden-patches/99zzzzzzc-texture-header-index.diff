@@ -1,0 +1,91 @@
+DirkuLator 0.70rc: the design of Eglantine pull request 900 (Fix/oot texture handle remap), for our tree. Adds
+Tegra::Texture::TextureHeaderIndex and UsesHeaderByteOffsetHandles. Some Switch 2 bindless handles (Switch Sports Resort's
+scenery) hold the texture header's byte offset in the pool (index * 32) where the handle normally has the index; that reading
+is switched on only for that title (program id 0x0400000000000849) and only on the native-tiling path, and only when the plain
+index lies past the pool and the offset lands inside it. Ocarina of Time has an out-of-range handle (0xbe000) that must stay
+out of range: it reads as no texture. Both places that turn a handle into a header index use it: the shader compile read
+(GenericEnvironment::ReadTextureInfo, which no longer reads past the end of the table, it returns an empty header) and the
+texture cache (VisitImageView). Compile-time checks in texture.h.
+
+diff --git a/src/video_core/shader_environment.cpp b/src/video_core/shader_environment.cpp
+--- a/src/video_core/shader_environment.cpp
++++ b/src/video_core/shader_environment.cpp
+@@ -387,10 +387,16 @@
+ Tegra::Texture::TICEntry GenericEnvironment::ReadTextureInfo(GPUVAddr tic_addr, u32 tic_limit,
+                                                              bool via_header_index, u32 raw) {
+     const auto handle{Tegra::Texture::TexturePair(raw, via_header_index)};
+-    ASSERT_MSG(handle.first <= tic_limit,
+-               "Texture handle 0x{:08x}: index {}, limit {}, table 0x{:x}, header binding {}",
+-               raw, handle.first, tic_limit, tic_addr, via_header_index);
+-    const GPUVAddr descriptor_addr{tic_addr + handle.first * sizeof(Tegra::Texture::TICEntry)};
++    const u32 index{Tegra::Texture::TextureHeaderIndex(
++        handle.first, tic_limit, Tegra::Texture::UsesHeaderByteOffsetHandles(gpu_memory->UsesNativeTiling()))};
++    if (index > tic_limit) {
++        // Past the end of the header table (Ocarina of Time's 0xbe000): no texture, as on the hardware, not whatever
++        // memory lies beyond the table.
++        LOG_TRACE(HW_GPU, "Texture handle 0x{:08x}: index {} is past the table (limit {}, table 0x{:x}, header binding {})",
++                  raw, handle.first, tic_limit, tic_addr, via_header_index);
++        return {};
++    }
++    const GPUVAddr descriptor_addr{tic_addr + index * sizeof(Tegra::Texture::TICEntry)};
+     Tegra::Texture::TICEntry entry;
+     gpu_memory->ReadBlock(descriptor_addr, &entry, sizeof(entry));
+     return entry;
+diff --git a/src/video_core/texture_cache/texture_cache.h b/src/video_core/texture_cache/texture_cache.h
+--- a/src/video_core/texture_cache/texture_cache.h
++++ b/src/video_core/texture_cache/texture_cache.h
+@@ -1336,6 +1336,8 @@
+ template <class P>
+ ImageViewId TextureCache<P>::VisitImageView(u32 index, bool compute) {
+     auto& table = compute ? channel_state->compute_image_table : channel_state->graphics_image_table;
++    index = Tegra::Texture::TextureHeaderIndex(
++        index, table.current_limit, Tegra::Texture::UsesHeaderByteOffsetHandles(gpu_memory->UsesNativeTiling()));
+     if (index > table.current_limit) {
+         LOG_TRACE(HW_GPU, "Invalid image view index={}", index);
+         return NULL_IMAGE_VIEW_ID;
+diff --git a/src/video_core/textures/texture.cpp b/src/video_core/textures/texture.cpp
+--- a/src/video_core/textures/texture.cpp
++++ b/src/video_core/textures/texture.cpp
+@@ -67,6 +67,11 @@
+     return float(1U << (max_anisotropy + added_anisotropic));
+ }
+ 
++bool UsesHeaderByteOffsetHandles(bool native_tiling) {
++    constexpr u64 SwitchSportsResortProgramId = 0x0400000000000849ULL;
++    return native_tiling && Settings::GetCurrentProgramID() == SwitchSportsResortProgramId;
++}
++
+ } // namespace Tegra::Texture
+ 
+ size_t std::hash<TICEntry>::operator()(const TICEntry& tic) const noexcept {
+diff --git a/src/video_core/textures/texture.h b/src/video_core/textures/texture.h
+--- a/src/video_core/textures/texture.h
++++ b/src/video_core/textures/texture.h
+@@ -165,6 +165,27 @@
+     }
+ }
+ 
++/// Whether bindless texture handles may hold the texture header's byte offset in the pool (index * 32) where a handle
++/// normally has the index. Only Nintendo Switch Sports Resort is known to use them. Ocarina of Time has an out-of-range
++/// handle (0xbe000 = 778240) that, read as an offset, would land on header 24320, a slot the game reuses for render
++/// targets, and its wall trims then flash with whatever image is there (Eglantine pull request 900).
++[[nodiscard]] bool UsesHeaderByteOffsetHandles(bool native_tiling);
++
++/// The header index a texture handle's index stands for. Read as a byte offset only when byte_offsets
++/// (UsesHeaderByteOffsetHandles), the plain index falls past the pool and the offset lands inside it, so handles that
++/// already resolve are left alone and an out-of-range one stays out of range (it then reads as no texture).
++[[nodiscard]] constexpr u32 TextureHeaderIndex(u32 index, u32 limit, bool byte_offsets) {
++    if (byte_offsets && index > limit && index % 32 == 0 && index / 32 <= limit) {
++        return index / 32;
++    }
++    return index;
++}
++static_assert(TextureHeaderIndex(778240, 30000, false) == 778240, "an out-of-range handle stays out of range");
++static_assert(TextureHeaderIndex(778240, 30000, true) == 24320, "byte offset 778240 is header 24320");
++static_assert(TextureHeaderIndex(100, 30000, true) == 100, "an index that resolves is left alone");
++static_assert(TextureHeaderIndex(33, 10, true) == 33, "only multiples of 32 are offsets");
++static_assert(TextureHeaderIndex(64000, 1000, true) == 64000, "an offset that lands outside the pool is not one");
++
+ struct TICEntry {
+     union {
+         struct {

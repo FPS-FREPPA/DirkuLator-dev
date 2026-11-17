@@ -143,61 +143,6 @@ Theme canopy()
     return t;
 }
 
-// Dirk: the colours of the app's own picture (dirk.jpg), midnight violet smoke, cream and an ember
-// glow. Canopy's shape and motion, its own backdrop (tools/launcher/render-art.py dirk-backdrop).
-Theme dirk()
-{
-    Theme t;
-    theme_from_kit("acrylic", &t);
-    t.id = "dirk";
-    t.name = "Dirk";
-    t.summary = TR("Midnight violet smoke, cream and an ember glow.");
-
-    t.base = rgb(0x110b1b);
-    t.scrim = rgb(0x08050d);
-    t.glass = rgb(0x231626);
-    t.panel = rgb(0x170e1d);
-    t.panel_edge = rgb(0x74585a);
-    t.row = rgb(0x21152a);
-    t.row_edge = rgb(0x5e4450);
-    t.row_focus = rgb(0x3c2236);
-
-    t.accent = rgb(0xf08a4b);
-    t.accent_deep = rgb(0x753b30);
-    t.accent_pale = rgb(0xffc9a0);
-    t.on_accent = rgb(0x110b1b);
-    t.highlight = rgb(0xffd6a8);
-
-    t.text = rgb(0xf6ece4);
-    t.title = rgb(0xfff6ee);
-    t.value = rgb(0xf2e6dc);
-    t.body = rgb(0xe4d4cc);
-    t.copy = rgb(0xc8b4b0);
-    t.meta = rgb(0xb8a2a8);
-    t.label = rgb(0xac96a0);
-    t.muted = rgb(0xa08e98);
-    t.faint = rgb(0x7c6a78);
-    t.warning = rgb(0xff7a6e);
-    t.rule = rgb(0x4a3444);
-
-    t.radius_row = 18.0f;
-    t.radius_card = 22.0f;
-    t.radius_panel = 30.0f;
-    t.pill_chips = true;
-    t.focus_width = 2.0f;
-    t.focus_glow = 30.0f;
-    t.glass_panels = true;
-
-    t.backdrop = "dirk-backdrop.tga";
-    t.backdrop_blur = "dirk-backdrop-blur.tga";
-    t.brand = "brand.tga";
-    t.light_x = 0.72f;
-    t.light_y = 0.38f;
-    t.motes = 18;
-    t.drift = 0.6f;
-    return t;
-}
-
 // ---- accent presets: named colour sets a user can pick per theme ----
 
 const AccentPreset kSlateAccents[] = {
@@ -231,7 +176,7 @@ const AccentPreset kDirkAccents[] = {
 
 struct Store
 {
-    std::array<Theme, 3> all{canopy(), slate(), dirk()};
+    std::array<Theme, 2> all{canopy(), slate()};  // 0.70rc: the Dirk theme is gone
     int index = 0;
     int accent = -1;
     Theme active = all[0];

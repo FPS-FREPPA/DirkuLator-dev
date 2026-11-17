@@ -7,7 +7,7 @@
 //     "video": { "renderer": "vulkan", "fps_overlay": true, "resolution": "1x",
 //                "upscaling_filter": "bilinear", "astc_textures": "compressed",
 //                "refresh_rate": "60",
-//                "output_resolution": "1080p", "frame_gen": false, "frame_gen_method": "lsfg",
+//                "output_resolution": "1440p", "frame_gen": false, "frame_gen_method": "lsfg",
 //                "frame_gen_target": "auto", "frame_gen_multiplier": "2", "post_processing": "Cinematic" },
 //     "audio": { "volume": 100, "mute": false, "menu_volume": 70 },
 //     "controls": { "vibration": true, "vibration_strength": 100,
@@ -120,6 +120,8 @@ static_assert(std::size(kHudCornerKeys) == 4);
 inline constexpr const char* kOutputKeys[] = {"1080p", "1440p", "2160p"};
 inline constexpr int kOutputWidth[] = {1920, 2560, 3840};
 inline constexpr int kOutputHeight[] = {1080, 1440, 2160};
+// 0.70rc: the picture the app puts out is 1440p unless another size is chosen (it was 1080p).
+inline constexpr int kDefaultOutput = 1;
 // Settings > Language: the system language games see, in launcher order. Each entry maps to Eden's
 // Settings::Language and to the Settings::Region consoles sold with that language have (indices in
 // Eden's enum order; headless/main.cpp checks them). Eden's older "Chinese" and "Taiwanese" codes
@@ -144,7 +146,7 @@ struct Preferences {
     int upscaling_filter = 0;            // index into kUpscalingFilterKeys
     int astc_textures = 0;               // index into kAstcTextureKeys (0 is compressed)
     int refresh = 0;                     // index into kRefreshKeys
-    int output = 0;                      // index into kOutputKeys
+    int output = kDefaultOutput;         // index into kOutputKeys (1440p since 0.70rc)
     bool frame_gen = false;              // frame generation (Vulkan only)
     int frame_gen_method = 0;            // index into kFrameGenMethodKeys (0 is LSFG)
     int frame_gen_target = 0;            // index into kFrameGenTargetKeys (0 is "auto")

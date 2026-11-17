@@ -12,7 +12,7 @@
                      twice the size it is drawn at
 
 render-art.py [name...] renders only the named pictures (backdrop, brand, controller,
-                     slate-backdrop, dirk-backdrop).
+                     slate-backdrop).
 """
 
 import sys
@@ -147,49 +147,6 @@ def slate_backdrop():
     return art
 
 
-def dirk_backdrop():
-    """Dirk's colours, no photo: a midnight violet sky, mauve smoke and an ember glow where the
-    theme's light is (light_x 0.72, light_y 0.38), dark on the left like the others."""
-    size = (2048, 1152)
-    base = (17, 11, 27)
-    art = Image.new("RGBA", size, (*base, 255))
-    # Smoke: large soft blobs of mauve, then blurred until no edge is left.
-    smoke = Image.new("RGBA", size)
-    draw = ImageDraw.Draw(smoke)
-    for cx, cy, r, colour, alpha in (
-            (1500, 300, 520, (73, 58, 72), .55), (1800, 760, 600, (90, 62, 84), .45),
-            (1100, 900, 480, (60, 38, 58), .40), (700, 250, 420, (48, 30, 48), .30),
-            (1650, 1050, 380, (175, 113, 94), .18)):
-        draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(*colour, round(alpha * 255)))
-    art.alpha_composite(smoke.filter(ImageFilter.GaussianBlur(160)))
-    # The ember glow: orange at the light, fading through rust into the sky.
-    glow = Image.new("RGBA", size)
-    draw = ImageDraw.Draw(glow)
-    cx, cy = round(.72 * size[0]), round(.38 * size[1])
-    for r, colour, alpha in ((420, (163, 71, 24), .45), (240, (232, 120, 52), .55), (110, (255, 196, 140), .65)):
-        draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(*colour, round(alpha * 255)))
-    art.alpha_composite(glow.filter(ImageFilter.GaussianBlur(120)))
-    # Dark on the left (same stop pattern as Canopy, in the sky's colour).
-    overlay = Image.new("RGBA", size)
-    draw = ImageDraw.Draw(overlay)
-    stops = ((0, .97), (.26, .94), (.48, .70), (.72, .28), (1, .05))
-    for x in range(size[0]):
-        fraction = x / (size[0] - 1)
-        for (a, first), (b, second) in zip(stops, stops[1:]):
-            if fraction <= b:
-                opacity = first + (second - first) * (fraction - a) / (b - a)
-                break
-        draw.line((x, 0, x, size[1]), fill=(*base, round(opacity * 255)))
-    art.alpha_composite(overlay)
-    fade = Image.new("RGBA", size)
-    draw = ImageDraw.Draw(fade)
-    for y in range(size[1]):
-        opacity = max(0, (y / size[1] - .68) / .32) * .65
-        draw.line((0, y, size[0], y), fill=(*base, round(opacity * 255)))
-    art.alpha_composite(fade)
-    return art
-
-
 def main():
     ART.mkdir(parents=True, exist_ok=True)
     wanted = set(sys.argv[1:]) or {"backdrop", "brand", "controller"}
@@ -205,11 +162,6 @@ def main():
         save_tga(grain(art, .02), "slate-backdrop.tga")
         small = art.resize((512, 288), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(9))
         save_tga(small, "slate-backdrop-blur.tga")
-    if "dirk-backdrop" in wanted:
-        art = dirk_backdrop()
-        save_tga(grain(art, .02), "dirk-backdrop.tga")
-        small = art.resize((512, 288), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(9))
-        save_tga(small, "dirk-backdrop-blur.tga")
     if "brand" in wanted:
         icon = Image.open(ROOT / "sce_sys/icon-source.png").convert("RGBA")
         save_tga(icon.resize((384, 384), Image.Resampling.LANCZOS), "brand.tga")
