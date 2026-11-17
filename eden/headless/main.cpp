@@ -18,6 +18,7 @@
 #endif
 #include "jit_list.h"
 #include "oot_probe.h"
+#include "core/arm/debug.h"  // FindMainModuleEntrypoint (oot_probe.h)
 #include "boot_trace.h"
 #ifdef PS5_NATIVE
 #include "elevation/elevation.hpp"
