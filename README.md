@@ -140,13 +140,11 @@ DirkuLator is built on the work of others; the full list with licenses is in
 **Used alongside it (research, rules and test setup; not part of the build)**
 
 - [AnyPS5](https://github.com/boykopovar/AnyPS5): contribution rules and PR research.
-- Lichii, nxnative ([seedds/nxnative](https://github.com/seedds/nxnative)) and Ocarina Recomp: how other Switch 2
+- [Lichii](https://github.com/zortos293/Lichii), nxnative ([seedds/nxnative](https://github.com/seedds/nxnative)) and Ocarina Recomp: how other Switch 2
   emulators handle Ocarina of Time rendering (depth invariance, culling, point-topology meshes).
 - [NintendoShaders](https://github.com/GRAnimated/NintendoShaders) by GRAnimated: a reference for Nintendo's
   render-library shader conventions.
 - The PS5 jailbreak tools used on the test console: the Relapse exploit, kstuff, ShadowMountPlus and etaHEN.
-- The Spotify Connect receiver "librespot-ps5" by stupiditytries, based on
-  [librespot](https://github.com/librespot-org/librespot), is played on the test console while testing.
 
 Thanks to the Eden maintainers and contributors, Mihawk, mpereiraesaa, John Törnblom, SvenGDK, Portablelle, and the
 PS5 homebrew community. AI assistance is credited in [CONTRIBUTORS.md](CONTRIBUTORS.md).
