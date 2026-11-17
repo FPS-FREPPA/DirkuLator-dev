@@ -61,15 +61,45 @@ static _Atomic uint64_t eden_dmem_next;
 static _Atomic int64_t eden_dmem_held;
 static uint64_t eden_dmem_printed; /* the memory report's thread only */
 
-/* 0.63rc: a refused request is listed once while it repeats. The driver asks for a large block in one
- * piece first and, refused, takes it in chunks (radv_ps5_memory_alloc_chunked), so the 0.62rc follow-up
- * run (101 min, 11.7 GiB held) logged 3410 FAILED events, 756 of them the same 36 MiB request from the
- * same caller, which pushed the allocations and releases out of the 4096-event ring. Every refusal is
- * still counted; a refusal equal to the last one listed (same size, same caller) within a second is
- * counted as repeated and not listed. */
+/* 0.64rc: refusals are kept per (size, caller). The 0.63rc follow-up run (66 min, still alive) counted 1287
+ * refusals but its "same as the last one listed" rule caught only 78: the callers alternate (the CPU heap's
+ * first attempt at a block in AllocatePagesAt / eden_heap_pages, its FragmentedCommit fallback, the driver's
+ * one-piece probe), so 1209 refusals were listed and the ring held little else. Now each (size, caller) has a
+ * slot in a small table: every refusal is counted in its slot, and a slot is listed at most once a second.
+ * The report prints the busiest slots (caller offset, size, count), so the next session says who is refused. */
+#define EDEN_DMEM_REFUSAL_SLOTS 64u
+struct eden_dmem_refusal {
+  _Atomic uint64_t key;   /* 0: unused */
+  _Atomic uint64_t count; /* refusals of this (size, caller) */
+  _Atomic int64_t listed_ns;
+  uint64_t size;
+  uint64_t caller;        /* offset from __eden_text_start; 0 unknown */
+};
+static struct eden_dmem_refusal eden_dmem_refusals[EDEN_DMEM_REFUSAL_SLOTS];
 static _Atomic uint64_t eden_dmem_failed_total, eden_dmem_failed_repeated;
-static _Atomic uint64_t eden_dmem_failed_key;
-static _Atomic int64_t eden_dmem_failed_ns;
+
+/* The slot of a (size, caller); a new key takes the slot of the least refused one when its own is taken. */
+static struct eden_dmem_refusal *eden_dmem_refusal_slot(uint64_t key, uint64_t size, uint64_t caller) {
+  const unsigned first = (unsigned)((key >> 7) % EDEN_DMEM_REFUSAL_SLOTS);
+  unsigned victim = first;
+  uint64_t victim_count = UINT64_MAX;
+  for (unsigned probe = 0; probe < 4; ++probe) {
+    const unsigned at = (first + probe) % EDEN_DMEM_REFUSAL_SLOTS;
+    struct eden_dmem_refusal *slot = &eden_dmem_refusals[at];
+    const uint64_t have = atomic_load_explicit(&slot->key, memory_order_relaxed);
+    if (have == key) return slot;
+    if (have == 0) { victim = at; victim_count = 0; break; }
+    const uint64_t count = atomic_load_explicit(&slot->count, memory_order_relaxed);
+    if (count < victim_count) { victim = at; victim_count = count; }
+  }
+  struct eden_dmem_refusal *slot = &eden_dmem_refusals[victim];
+  slot->size = size;
+  slot->caller = caller;
+  atomic_store_explicit(&slot->count, 0, memory_order_relaxed);
+  atomic_store_explicit(&slot->listed_ns, 0, memory_order_relaxed);
+  atomic_store_explicit(&slot->key, key, memory_order_relaxed);
+  return slot;
+}
 
 static void eden_dmem_record(int kind, int path, int64_t start, size_t size, const void *caller) {
   int64_t held = atomic_load_explicit(&eden_dmem_held, memory_order_relaxed);
@@ -83,15 +113,17 @@ static void eden_dmem_record(int kind, int path, int64_t start, size_t size, con
   clock_gettime(CLOCK_MONOTONIC, &now);
   const int64_t ns = (int64_t)now.tv_sec * 1000000000ll + now.tv_nsec;
   if (kind == EDEN_DMEM_FAILED) {
-    const uint64_t key = (uint64_t)size * 0x9e3779b97f4a7c15ull ^ (uint64_t)(uintptr_t)caller;
+    const uintptr_t text_base = (uintptr_t)__eden_text_start, caller_at = (uintptr_t)caller;
+    const uint64_t caller_off = __eden_text_start != NULL && caller_at >= text_base ? caller_at - text_base : 0;
+    const uint64_t key = ((uint64_t)size * 0x9e3779b97f4a7c15ull ^ (caller_off * 0xc2b2ae3d27d4eb4full)) | 1u;
+    struct eden_dmem_refusal *slot = eden_dmem_refusal_slot(key, size, caller_off);
     atomic_fetch_add_explicit(&eden_dmem_failed_total, 1, memory_order_relaxed);
-    if (atomic_load_explicit(&eden_dmem_failed_key, memory_order_relaxed) == key &&
-        ns - atomic_load_explicit(&eden_dmem_failed_ns, memory_order_relaxed) < 1000000000ll) {
+    atomic_fetch_add_explicit(&slot->count, 1, memory_order_relaxed);
+    if (ns - atomic_load_explicit(&slot->listed_ns, memory_order_relaxed) < 1000000000ll) {
       atomic_fetch_add_explicit(&eden_dmem_failed_repeated, 1, memory_order_relaxed);
       return;
     }
-    atomic_store_explicit(&eden_dmem_failed_key, key, memory_order_relaxed);
-    atomic_store_explicit(&eden_dmem_failed_ns, ns, memory_order_relaxed);
+    atomic_store_explicit(&slot->listed_ns, ns, memory_order_relaxed);
   }
   const uint64_t seq = atomic_fetch_add_explicit(&eden_dmem_next, 1, memory_order_relaxed) + 1;
   struct eden_dmem_event *event = &eden_dmem_events[seq % EDEN_DMEM_EVENTS];
@@ -128,6 +160,34 @@ uint64_t eden_direct_events_failed(uint64_t *repeated) {
 static const char *const eden_dmem_kinds[] = {"?", "alloc", "release", "FAILED"};
 static const char *const eden_dmem_paths[] = {"wrap", "high", "low"};
 
+/* The busiest refusal slots, one line, every 30 reports (0.64rc): who is refused, how often, for how much. */
+static void eden_dmem_refusals_print(void) {
+  static unsigned calls;
+  if (++calls % 30u != 0u) return;
+  unsigned order[EDEN_DMEM_REFUSAL_SLOTS], n = 0;
+  for (unsigned i = 0; i < EDEN_DMEM_REFUSAL_SLOTS; ++i)
+    if (atomic_load_explicit(&eden_dmem_refusals[i].count, memory_order_relaxed) != 0) order[n++] = i;
+  for (unsigned i = 1; i < n; ++i) { /* insertion sort, busiest first */
+    const unsigned v = order[i];
+    unsigned j = i;
+    while (j > 0 && atomic_load_explicit(&eden_dmem_refusals[order[j - 1]].count, memory_order_relaxed) <
+                        atomic_load_explicit(&eden_dmem_refusals[v].count, memory_order_relaxed)) {
+      order[j] = order[j - 1];
+      --j;
+    }
+    order[j] = v;
+  }
+  if (n == 0) return;
+  fprintf(stderr, "EDEN_DMEM_REFUSED total=%llu slots=%u top:", (unsigned long long)atomic_load_explicit(&eden_dmem_failed_total, memory_order_relaxed), n);
+  for (unsigned i = 0; i < n && i < 8; ++i) {
+    const struct eden_dmem_refusal *slot = &eden_dmem_refusals[order[i]];
+    fprintf(stderr, " caller=%#llx size_kib=%llu count=%llu;", (unsigned long long)slot->caller,
+            (unsigned long long)(slot->size >> 10),
+            (unsigned long long)atomic_load_explicit(&slot->count, memory_order_relaxed));
+  }
+  fprintf(stderr, "\n");
+}
+
 /* New events since the last call, one EDEN_DMEM line each, on stderr (the memory report's thread). */
 void eden_direct_events_print(void) {
   const uint64_t last = atomic_load_explicit(&eden_dmem_next, memory_order_acquire);
@@ -149,6 +209,7 @@ void eden_direct_events_print(void) {
             (long long)(event->held >> 20), event->deep[0], event->deep[1], event->deep[2]);
   }
   eden_dmem_printed = last;
+  eden_dmem_refusals_print();
 }
 
 /* The last `count` events as text, without the C library (the crash report's handler). */

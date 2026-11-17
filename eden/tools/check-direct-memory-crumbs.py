@@ -195,6 +195,18 @@ int main(int argc, char** argv) {
         assert(__wrap_sceKernelAllocateDirectMemory(0, Total, size_t(Total) * 3, 2 * MiB, 12, &none) != 0);
         uint64_t repeated2 = 0;
         assert(eden_direct_events_failed(&repeated2) == failed1 + 1 && repeated2 == repeated1);   // another size: listed
+        // 0.64rc: refusals that ALTERNATE between sizes (the heap's first attempt, its fragmented fallback, the
+        // driver's probe) are listed once per (size, caller), not every time the key changes.
+        const uint64_t failed2 = failed1 + 1;
+        for (int i = 0; i < 1500; ++i) {
+            int64_t none2 = -1;
+            const size_t size = size_t(Total) * (4 + (i % 3));   // three alternating sizes, same call site
+            assert(__wrap_sceKernelAllocateDirectMemory(0, Total, size, 2 * MiB, 12, &none2) != 0);
+        }
+        uint64_t repeated3 = 0;
+        const uint64_t failed3 = eden_direct_events_failed(&repeated3);
+        assert(failed3 - failed2 == 1500);
+        assert(repeated3 - repeated2 >= 1497);   // at most one listing per size: 3 of the 1500
     }
     std::puts(off ? "PASS crumb placement with packing off" : "PASS crumb placement: packed into the top 3 GiB, fallback when full");
     return 0;
