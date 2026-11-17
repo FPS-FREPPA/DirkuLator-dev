@@ -33,10 +33,9 @@ hardware. This is early development, with substantial work remaining.
 
 ## Status
 
-**Latest published candidate: 0.66rc** (title PPSA99862, content version 00.005.066). **0.67rc to 0.77rc**
-(00.005.067 to 00.005.077) are built, run on the console as diagnostic and feature builds, and kept local: a candidate is
-published after the console test it needs, and none of these has a release yet. Their source is on this branch; what they
-changed is in [BUILD-NOTES.md](BUILD-NOTES.md).
+**Latest published candidates: 0.78rc** (title PPSA99863, content version 00.005.078, installed and verified on a console,
+not yet run) **and 0.77rc** (PPSA99862, 00.005.077, run once). 0.67rc to 0.76rc were diagnostic and feature builds run on
+the console and not published; their source is on this branch and what they changed is in [BUILD-NOTES.md](BUILD-NOTES.md).
 
 What the console runs show, from the 0.58rc to 0.66rc history (details in [BUILD-NOTES.md](BUILD-NOTES.md)):
 
@@ -81,18 +80,12 @@ Hardware stability, geometry and sustained 30 FPS remain unqualified.
 
 Verified development prereleases, each with the matching source ZIP, checksums, validation record and change notes.
 
-- **0.66rc** (latest published): [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.66rc/DirkuLator-0.66rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.66rc/DirkuLator-0.66rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.66rc).
-- **0.65rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.65rc/DirkuLator-0.65rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.65rc/DirkuLator-0.65rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.65rc).
-- **0.64rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.64rc/DirkuLator-0.64rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.64rc/DirkuLator-0.64rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.64rc).
-- **0.63rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.63rc/DirkuLator-0.63rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.63rc/DirkuLator-0.63rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.63rc).
-- **0.62rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.62rc/DirkuLator-0.62rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.62rc/DirkuLator-0.62rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.62rc).
-- **0.61rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.61rc/DirkuLator-0.61rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.61rc/DirkuLator-0.61rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.61rc).
-- **0.60rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.60rc/DirkuLator-0.60rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.60rc/DirkuLator-0.60rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.60rc).
-- **0.59rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.59rc/DirkuLator-0.59rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.59rc/DirkuLator-0.59rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.59rc).
-- **0.58rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.58rc).
-- **0.57rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.57rc).
+- **0.78rc** (title **PPSA99863**, latest): [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.78rc/DirkuLator-0.78rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.78rc/DirkuLator-0.78rc-source.zip) · [SHA256SUMS](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.78rc/SHA256SUMS) · [Validation](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.78rc/VALIDATION.json) · [Notes](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.78rc). Installed and verified on a console, not yet run. A new title ID, so it installs next to an older PPSA99862 app instead of over it.
+- **0.77rc** (title PPSA99862): [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.77rc/DirkuLator-0.77rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.77rc/DirkuLator-0.77rc-source.zip) · [SHA256SUMS](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.77rc/SHA256SUMS) · [Validation](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.77rc/VALIDATION.json) · [Notes](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.77rc)
 
-Earlier candidates (0.5.54rc and before) are on the [releases page](https://github.com/FPS-FREPPA/DirkuLator-dev/releases). Check a release's SHA256SUMS before installing it. `VALIDATION.json` is written when a package is built, so its
+Only these two builds are kept as downloads. Older candidates (0.5.54rc to 0.66rc) keep their release page and notes, but their build files have been removed from the releases page; their source is in this repository's history.
+
+The release notes of every candidate are on the [releases page](https://github.com/FPS-FREPPA/DirkuLator-dev/releases). Check a release's SHA256SUMS before installing it. `VALIDATION.json` is written when a package is built, so its
 `hardware_tested` field does not reflect console runs made afterwards; the release notes say what each console run showed.
 
 ## Scope
