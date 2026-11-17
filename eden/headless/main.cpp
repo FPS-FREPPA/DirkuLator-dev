@@ -289,10 +289,8 @@ void RequestCaptureFromPad() {
     std::sort(kept.begin(), kept.end());
     constexpr std::size_t kKeep = 5;
     for (std::size_t i = 0; kept.size() > kKeep && i < kept.size() - kKeep; ++i) fs::remove_all(kept[i].second, ec);
-    std::ofstream(std::string{Eden::kDataDir} + "/capture-now.txt") << "pad
-";
-    std::fprintf(stderr, "EDEN_FRAME_CAPTURE requested from the controller (Touchpad + L2)
-");
+    std::ofstream(std::string{Eden::kDataDir} + "/capture-now.txt") << "pad\n";
+    std::fprintf(stderr, "EDEN_FRAME_CAPTURE requested from the controller (Touchpad + L2)\n");
 }
 
 int main(int argc, char** argv) {
