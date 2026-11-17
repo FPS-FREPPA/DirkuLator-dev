@@ -8,7 +8,7 @@
 // a ring (no allocation, no locking, no logging in the handler), and the sampling thread prints the busiest
 // addresses every 10 s:
 //
-//   EDEN_PC_SAMPLES up_s=<n> target=<GPU|GPUBack> n=<samples> lost=<overwritten> sent=<signals> failed=<kill errors>
+//   EDEN_PC_SAMPLES up_s=<n> target=<GPU|GPUBack|CPUCore_N> n=<samples> lost=<overwritten> sent=<signals> failed=<kill errors>
 //       base=<__eden_text_start> top: <pc relative to base>=<count> ...
 //
 // The addresses are relative to __eden_text_start so they can be symbolised against the exact ELF
@@ -41,9 +41,10 @@ extern "C" const char __eden_text_start[] __attribute__((weak));
 
 namespace Eden::PcSampler {
 
-inline constexpr std::size_t kTargets = 2;
+inline constexpr std::size_t kTargets = 8;  // 0.75rc: the six CPU core threads too
 inline constexpr std::size_t kRing = 16384;  // 160 s at 100 Hz: far more than one report window
-inline constexpr std::array<const char*, kTargets> kNames{"GPU", "GPUBack"};
+inline constexpr std::array<const char*, kTargets> kNames{"GPU",       "GPUBack",   "CPUCore_0", "CPUCore_1",
+                                                                  "CPUCore_2", "CPUCore_3", "CPUCore_4", "CPUCore_5"};
 
 struct Target {
     std::atomic<std::uintptr_t> thread{0};
@@ -237,7 +238,7 @@ inline bool Init(const std::string& data_dir, bool start_thread = true) {
     }
     const detail::Settings settings = detail::ReadSettings(path);
     enabled.store(true, std::memory_order_release);
-    std::fprintf(stderr, "EDEN_PC_SAMPLER on (%u Hz after %u s; targets GPU, GPUBack)\n", settings.rate_hz,
+    std::fprintf(stderr, "EDEN_PC_SAMPLER on (%u Hz after %u s; targets GPU, GPUBack, CPUCore_0..5)\n", settings.rate_hz,
                  settings.delay_s);
     if (start_thread) std::thread(detail::Run, settings).detach();
     return true;
