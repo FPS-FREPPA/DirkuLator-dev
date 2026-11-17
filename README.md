@@ -33,8 +33,10 @@ hardware. This is early development, with substantial work remaining.
 
 ## Status
 
-**Latest published candidate: 0.66rc** (title PPSA99862, content version 00.005.066). **0.67rc** (00.005.067) is
-built and kept local until it has run on the console. A candidate is published after the console test it needs.
+**Latest published candidate: 0.66rc** (title PPSA99862, content version 00.005.066). **0.67rc to 0.75rc**
+(00.005.067 to 00.005.075) are built, run on the console as diagnostic and feature builds, and kept local: a candidate is
+published after the console test it needs, and none of these has a release yet. Their source is on this branch; what they
+changed is in [BUILD-NOTES.md](BUILD-NOTES.md).
 
 What the console runs show, from the 0.58rc to 0.66rc history (details in [BUILD-NOTES.md](BUILD-NOTES.md)):
 
@@ -50,7 +52,14 @@ What the console runs show, from the 0.58rc to 0.66rc history (details in [BUILD
   with the GPU nearly idle. The 0.65rc wait profiler showed the RADV driver's queue thread idle for up to 2 s while
   nothing was submitted; 0.67rc names the threads to find who the submitting side waits for.
 - **Audio.** Since 0.60rc the game's music (any voice that loops for ever) was silenced; 0.66rc plays it. The
-  sound is choppy although the emulator's render queue never ran dry; 0.67rc adds a probe for the output thread.
+  output is fed steadily, so the choppiness is not the output thread. In the 0.74rc run the music was still missing in
+  the main menu and in cutscenes (it plays in the game world); 0.75rc adds level meters to find where it is lost.
+- **Slow stretches and stalls.** A slow stretch costs about 350-1700 us per draw against 15-19 us when healthy, with the
+  GPU nearly idle. The PC sampler (0.68rc) shows the GPU thread parked in a different system wait during a stall than
+  in normal idle; one 0.74rc stall lasted 153 s at 0.1 FPS with 2 GiB of memory free, so it is not only memory.
+  0.75rc samples the CPU core threads as well.
+- **Memory.** Several runs end in, or stall on, exhausted console memory (about 12 GiB held, allocations refused);
+  OpenGL (0.70rc) crashed at the shader link when its 3 GiB heap filled. Neither is fixed.
 - **Rendering is not fixed.** In Kokiri Forest the picture still has view-dependent white haze, hard fog
   boundaries, shard-like polygon slabs, black water, unlit black props and characters, and an over-exposed
   yellow interior in Link's house. Close-range views can be clean, which points at the fog/depth blend pass rather
@@ -148,6 +157,9 @@ DirkuLator is built on the work of others; the full list with licenses is in
 **Used alongside it (research, rules and test setup; not part of the build)**
 
 - [AnyPS5](https://github.com/boykopovar/AnyPS5): contribution rules and PR research.
+- [PracticeROM/sloperina](https://github.com/PracticeROM/sloperina) (GPL-3.0): its published memory layout of Ocarina of
+  Time's Switch 2 build (docs/FINDINGS.md) is what the read-only probe in `oot_probe.h` checks, as groundwork for a debug
+  fly shortcut.
 - [Lichii](https://github.com/zortos293/Lichii), nxnative ([seedds/nxnative](https://github.com/seedds/nxnative)) and Ocarina Recomp: how other Switch 2
   emulators handle Ocarina of Time rendering (depth invariance, culling, point-topology meshes).
 - [NintendoShaders](https://github.com/GRAnimated/NintendoShaders) by GRAnimated: a reference for Nintendo's
