@@ -146,6 +146,10 @@ inline void ForgetGuestScreen() { GuestScreen(0, 0); }
 // the draws and the pipelines built in that second. Shown only while the monitor sets
 // perf_shown, so the line is what it always was without it; ~0u: not measured yet.
 inline std::atomic<bool> perf_shown{false};
+// 0.72rc: a short notice on the overlay's line after a capture from the controller: 1 asked, 2 saved, until the
+// steady-clock millisecond in notice_until_ms (main.cpp, RequestCaptureFromPad).
+inline std::atomic<uint32_t> notice_kind{0};
+inline std::atomic<int64_t> notice_until_ms{0};
 inline std::atomic<uint32_t> perf_p99_tenths{~0u}, perf_draws{~0u}, perf_pipelines{~0u};
 // DirkuLator 0.5.20: graphs under the line (perf_monitor.h fills them, MakeHudGraphs draws them):
 // the frame time of each of the last 104 frames, and the last 104 seconds of the frame rate, the
@@ -411,6 +415,11 @@ inline std::array<char, kHudTextMax + 1> FormatHudText(const HudClock& clock, co
             std::snprintf(piece, sizeof(piece), " SHD %u", pipelines);
             put(piece);
         }
+    }
+    if (const uint32_t kind = Hud::notice_kind.load(std::memory_order_relaxed); kind != 0) {
+        const int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::steady_clock::now().time_since_epoch()).count();
+        if (now < Hud::notice_until_ms.load(std::memory_order_relaxed)) put(kind == 1 ? " CAPTURING" : " CAPTURE SAVED");
     }
     if ((fields & kHudFieldPing) && ping_ms >= 0) {
         std::snprintf(piece, sizeof(piece), " P%d", std::min(ping_ms, 9999));

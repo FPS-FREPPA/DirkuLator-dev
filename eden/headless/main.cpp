@@ -291,6 +291,31 @@ void RequestCaptureFromPad() {
     for (std::size_t i = 0; kept.size() > kKeep && i < kept.size() - kKeep; ++i) fs::remove_all(kept[i].second, ec);
     std::ofstream(std::string{Eden::kDataDir} + "/capture-now.txt") << "pad\n";
     std::fprintf(stderr, "EDEN_FRAME_CAPTURE requested from the controller (Touchpad + L2)\n");
+    // The overlay says "CAPTURING" from now, and "CAPTURE SAVED" once the request is taken and the folder has stopped
+    // growing (the capture pauses rendering while it writes, so the line is seen again just as it ends).
+    const auto now_ms = [] { return std::chrono::duration_cast<std::chrono::milliseconds>(
+                                 std::chrono::steady_clock::now().time_since_epoch()).count(); };
+    Eden::Hud::notice_until_ms = now_ms() + 120000;
+    Eden::Hud::notice_kind = 1;
+    std::thread([folder, now_ms] {
+        std::error_code ignore;
+        const std::string request = std::string{Eden::kDataDir} + "/capture-now.txt";
+        const auto started = now_ms();
+        while (std::filesystem::exists(request, ignore) && now_ms() - started < 60000)
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::uintmax_t last = ~std::uintmax_t{0};
+        int steady = 0;
+        for (int i = 0; i < 600 && steady < 5; ++i) {
+            std::uintmax_t bytes = 0;
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(folder, ignore))
+                if (entry.is_regular_file(ignore)) bytes += entry.file_size(ignore);
+            steady = bytes == last ? steady + 1 : 0;
+            last = bytes;
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        }
+        Eden::Hud::notice_until_ms = now_ms() + 6000;
+        Eden::Hud::notice_kind = 2;
+    }).detach();
 }
 
 int main(int argc, char** argv) {
