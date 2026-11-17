@@ -33,8 +33,8 @@ hardware. This is early development, with substantial work remaining.
 
 ## Status
 
-**Latest published candidate: 0.66rc** (title PPSA99862, content version 00.005.066). **0.67rc to 0.75rc**
-(00.005.067 to 00.005.075) are built, run on the console as diagnostic and feature builds, and kept local: a candidate is
+**Latest published candidate: 0.66rc** (title PPSA99862, content version 00.005.066). **0.67rc to 0.77rc**
+(00.005.067 to 00.005.077) are built, run on the console as diagnostic and feature builds, and kept local: a candidate is
 published after the console test it needs, and none of these has a release yet. Their source is on this branch; what they
 changed is in [BUILD-NOTES.md](BUILD-NOTES.md).
 
@@ -52,14 +52,22 @@ What the console runs show, from the 0.58rc to 0.66rc history (details in [BUILD
   with the GPU nearly idle. The 0.65rc wait profiler showed the RADV driver's queue thread idle for up to 2 s while
   nothing was submitted; 0.67rc names the threads to find who the submitting side waits for.
 - **Audio.** Since 0.60rc the game's music (any voice that loops for ever) was silenced; 0.66rc plays it. The
-  output is fed steadily, so the choppiness is not the output thread. In the 0.74rc run the music was still missing in
-  the main menu and in cutscenes (it plays in the game world); 0.75rc adds level meters to find where it is lost.
+  output is fed steadily, so the choppiness is not the output thread. Music is missing at random in the intro and main
+  menu (it plays in the game world). The 0.75rc and 0.76rc meters showed the renderer healthy (about 1000 command lists
+  per five seconds, never a dropped voice, the game updating it throughout) while up to 25 s windows had no voice
+  playing at all, so the game is not feeding or starting the music voices then. 0.77rc counts voice underruns and Opus
+  decodes to tell a late feed from a stopped stream.
 - **Slow stretches and stalls.** A slow stretch costs about 350-1700 us per draw against 15-19 us when healthy, with the
   GPU nearly idle. The PC sampler (0.68rc) shows the GPU thread parked in a different system wait during a stall than
   in normal idle; one 0.74rc stall lasted 153 s at 0.1 FPS with 2 GiB of memory free, so it is not only memory.
-  0.75rc samples the CPU core threads as well.
+  0.75rc samples the CPU core threads as well: in a 0.75rc slow stretch every core thread and the GPU thread were
+  mostly waiting (the cores 30-40 % of samples at one wait address they barely touch when healthy), with the memory
+  nearly full; the system waits rather than computes.
 - **Memory.** Several runs end in, or stall on, exhausted console memory (about 12 GiB held, allocations refused);
   OpenGL (0.70rc) crashed at the shader link when its 3 GiB heap filled. Neither is fixed.
+- **Debug tools on this branch.** Touchpad (left half, a touch or a click) + L2 requests a GPU capture from the
+  controller, with a CAPTURING / CAPTURE SAVED note on the overlay (0.71rc to 0.73rc); a read-only probe of Ocarina of
+  Time's actors, groundwork for a debug fly shortcut (0.77rc finally gets the game's main module from the loader).
 - **Rendering is not fixed.** In Kokiri Forest the picture still has view-dependent white haze, hard fog
   boundaries, shard-like polygon slabs, black water, unlit black props and characters, and an over-exposed
   yellow interior in Link's house. Close-range views can be clean, which points at the fog/depth blend pass rather
