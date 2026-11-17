@@ -1,0 +1,69 @@
+DirkuLator 0.76rc: EDEN_AUDIO_RENDER, every five seconds: how often the game updated the audio renderer, how often a command
+list was generated, in how many of those voices were dropped for the DSP time budget, how many, and whether dropping is on.
+Tells a game whose audio thread stopped from one whose renderer dropped the music voice. Read-only, PS5 build only.
+
+diff --git a/src/audio_core/renderer/system.cpp b/src/audio_core/renderer/system.cpp
+--- a/src/audio_core/renderer/system.cpp
++++ b/src/audio_core/renderer/system.cpp
+@@ -8,6 +8,9 @@
+ #include <span>
+ 
+ #include "audio_core/adsp/apps/audio_renderer/audio_renderer.h"
++#include <atomic>
++#include <chrono>
++#include <cstdio>
+ #include "audio_core/adsp/apps/audio_renderer/command_buffer.h"
+ #include "audio_core/audio_core.h"
+ #include "audio_core/common/audio_renderer_parameter.h"
+@@ -448,7 +451,19 @@
+     }
+ }
+ 
++#ifdef EDEN_NX2_PS5_PROTO
++// 0.76rc EDEN_AUDIO_RENDER: every five seconds, how often the game updated the renderer (its audio thread is alive) and how
++// often a command list was generated, how many of those dropped voices for the DSP time budget, and the last estimate against its
++// limit. A music voice that comes and goes could be one the renderer dropped.
++static std::atomic<u64> g_render_probe_updates{0}, g_render_probe_renders{0}, g_render_probe_drop_renders{0},
++    g_render_probe_dropped_voices{0}, g_render_probe_max_dropped{0};
++static std::atomic<s64> g_render_probe_next{0};
++#endif
++
+ Result System::Update(std::span<const u8> input, std::span<u8> performance, std::span<u8> output) {
++#ifdef EDEN_NX2_PS5_PROTO
++    g_render_probe_updates.fetch_add(1, std::memory_order_relaxed);
++#endif
+     std::scoped_lock l{lock};
+ 
+     const auto start_time{core.CoreTiming().GetGlobalTimeNs().count()};
+@@ -728,6 +743,31 @@
+ 
+     command_list_header->buffer_size = command_buffer.size;
+     command_list_header->command_count = command_buffer.count;
++#ifdef EDEN_NX2_PS5_PROTO
++    {
++        g_render_probe_renders.fetch_add(1, std::memory_order_relaxed);
++        if (num_voices_dropped != 0) {
++            g_render_probe_drop_renders.fetch_add(1, std::memory_order_relaxed);
++            g_render_probe_dropped_voices.fetch_add(num_voices_dropped, std::memory_order_relaxed);
++            u64 seen = g_render_probe_max_dropped.load(std::memory_order_relaxed);
++            while (num_voices_dropped > seen &&
++                   !g_render_probe_max_dropped.compare_exchange_weak(seen, num_voices_dropped, std::memory_order_relaxed)) {}
++        }
++        const s64 now = std::chrono::duration_cast<std::chrono::seconds>(
++                            std::chrono::steady_clock::now().time_since_epoch()).count();
++        if (s64 next = g_render_probe_next.load(std::memory_order_relaxed);
++            now >= next && g_render_probe_next.compare_exchange_strong(next, now + 5)) {
++            std::fprintf(stderr,
++                         "EDEN_AUDIO_RENDER updates=%llu renders=%llu drop_renders=%llu dropped_voices=%llu max_dropped=%llu drop_enabled=%d commands=%u\n",
++                         static_cast<unsigned long long>(g_render_probe_updates.exchange(0, std::memory_order_relaxed)),
++                         static_cast<unsigned long long>(g_render_probe_renders.exchange(0, std::memory_order_relaxed)),
++                         static_cast<unsigned long long>(g_render_probe_drop_renders.exchange(0, std::memory_order_relaxed)),
++                         static_cast<unsigned long long>(g_render_probe_dropped_voices.exchange(0, std::memory_order_relaxed)),
++                         static_cast<unsigned long long>(g_render_probe_max_dropped.exchange(0, std::memory_order_relaxed)),
++                         drop_voice ? 1 : 0, static_cast<unsigned>(command_buffer.count));
++        }
++    }
++#endif
+ 
+     voice_context.UpdateStateByDspShared();
+ 
