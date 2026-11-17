@@ -37,6 +37,10 @@ int main(int argc, char **argv) {
   assert(argc == 3);
   const std::string data = argv[1];
   const bool expect_on = std::string(argv[2]) == "on";
+  // The console's pthread_t is a pointer, Linux's an integer: both forms of the id helpers must compile and round-trip.
+  assert(Eden::PcSampler::ToId<void *>(reinterpret_cast<void *>(0x1234)) == 0x1234);
+  assert(Eden::PcSampler::FromId<void *>(0x1234) == reinterpret_cast<void *>(0x1234));
+  assert(Eden::PcSampler::FromId(Eden::PcSampler::ToId(pthread_self())) == pthread_self());
   const bool on = Eden::PcSampler::Init(data, /*start_thread=*/false);
   assert(on == expect_on);
   if (!on) {

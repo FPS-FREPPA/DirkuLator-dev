@@ -55,13 +55,17 @@ inline std::array<Target, kTargets> targets;
 inline std::atomic<bool> enabled{false};
 inline std::atomic<unsigned long long> signals_sent{0}, signals_failed{0};
 
-inline std::uintptr_t ToId(pthread_t t) {
-    if constexpr (std::is_pointer_v<pthread_t>) return reinterpret_cast<std::uintptr_t>(t);
+// pthread_t is a pointer on the console and an integer on Linux. `if constexpr` only discards the branch that does
+// not apply inside a template, hence the template parameter.
+template <class T = pthread_t>
+inline std::uintptr_t ToId(T t) {
+    if constexpr (std::is_pointer_v<T>) return reinterpret_cast<std::uintptr_t>(t);
     else return static_cast<std::uintptr_t>(t);
 }
-inline pthread_t FromId(std::uintptr_t id) {
-    if constexpr (std::is_pointer_v<pthread_t>) return reinterpret_cast<pthread_t>(id);
-    else return static_cast<pthread_t>(id);
+template <class T = pthread_t>
+inline T FromId(std::uintptr_t id) {
+    if constexpr (std::is_pointer_v<T>) return reinterpret_cast<T>(id);
+    else return static_cast<T>(id);
 }
 
 // The interrupted instruction pointer. On the console it is word 28 of the signal context (the native ABI
