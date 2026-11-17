@@ -20,6 +20,8 @@
 #include <thread>
 #include <vector>
 
+#include "core/arm/debug.h"
+#include "core/hle/kernel/k_process.h"
 #include "core/memory.h"
 
 namespace Eden::OotProbe {
@@ -32,14 +34,12 @@ inline constexpr std::uint64_t kCamera = 0x4E98068;
 class Session {
 public:
     ~Session() { Stop(); }
-    void Start(std::uint64_t program_id, const std::uint8_t* build, std::size_t build_size, std::uint64_t main_base,
-               Core::Memory::Memory* memory) {
+    void Start(std::uint64_t program_id, const std::uint8_t* build, std::size_t build_size, Kernel::KProcess* process) {
         if (program_id != kProgramId || build_size < sizeof(kBuildId) || std::memcmp(build, kBuildId, sizeof(kBuildId)) != 0 ||
-            memory == nullptr || running_)
+            process == nullptr || running_)
             return;
         running_ = true;
-        std::fprintf(stderr, "EDEN_OOT_PROBE on main=%llx\n", static_cast<unsigned long long>(main_base));
-        worker_ = std::thread([this, main_base, memory] { Run(main_base, *memory); });
+        worker_ = std::thread([this, process] { Run(process, process->GetMemory()); });
     }
     void Stop() {
         stop_ = true;
@@ -75,13 +75,28 @@ private:
         return {};
     }
 
-    void Run(u64 main_base, Core::Memory::Memory& m) {
+    void Run(Kernel::KProcess* process, Core::Memory::Memory& m) {
         int tick = 0;
+        u64 main_base = 0;
         int scans = 0;
         std::set<std::string> seen;
         while (!stop_) {
             std::this_thread::sleep_for(std::chrono::milliseconds(tick < 60 ? 1000 : 5000));
             ++tick;
+            // The game's main module is found once the loader has mapped it; until then the answer is the start of the code
+            // region (0.73rc asked too early and read from there).
+            const u64 code_region = static_cast<u64>(GetInteger(process->GetPageTable().GetCodeRegionStart()));
+            const u64 found_main = static_cast<u64>(GetInteger(Core::FindMainModuleEntrypoint(process)));
+            if (found_main == code_region || found_main == 0) {
+                if (tick % 10 == 1) std::fprintf(stderr, "EDEN_OOT_PROBE tick=%d main module not found yet
+", tick);
+                continue;
+            }
+            if (found_main != main_base) {
+                main_base = found_main;
+                std::fprintf(stderr, "EDEN_OOT_PROBE on main=%llx
+", static_cast<unsigned long long>(main_base));
+            }
             u64 mgr = 0;
             if (!Read64(m, main_base + kActorManager, mgr) || !Valid(m, mgr)) {
                 if (tick % 10 == 1) std::fprintf(stderr, "EDEN_OOT_PROBE tick=%d actor manager not readable\n", tick);

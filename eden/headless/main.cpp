@@ -292,7 +292,9 @@ void RequestCaptureFromPad() {
     constexpr std::size_t kKeep = 5;
     for (std::size_t i = 0; kept.size() > kKeep && i < kept.size() - kKeep; ++i) fs::remove_all(kept[i].second, ec);
     std::ofstream(std::string{Eden::kDataDir} + "/capture-now.txt") << "pad\n";
-    std::fprintf(stderr, "EDEN_FRAME_CAPTURE requested from the controller (Touchpad + L2)\n");
+    unsigned long long free_bytes = 0, total_bytes = 0;
+    Eden::Performance::MemoryPool(&free_bytes, &total_bytes);
+    std::fprintf(stderr, "EDEN_FRAME_CAPTURE requested from the controller (Touchpad + L2), free memory %llu MiB of %llu MiB\n", free_bytes >> 20, total_bytes >> 20);
     // The overlay says "CAPTURING" from now, and "CAPTURE SAVED" once the request is taken and the folder has stopped
     // growing (the capture pauses rendering while it writes, so the line is seen again just as it ends).
     const auto now_ms = [] { return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -2121,8 +2123,7 @@ int main(int argc, char** argv) {
                 if (auto* process = system.ApplicationProcess()) {
                     const auto& probe_id = system.GetApplicationProcessBuildID();
                     oot_probe.Start(system.GetApplicationProcessProgramID(),
-                                    reinterpret_cast<const std::uint8_t*>(probe_id.data()), probe_id.size(),
-                                    GetInteger(Core::FindMainModuleEntrypoint(process)), &process->GetMemory());
+                                    reinterpret_cast<const std::uint8_t*>(probe_id.data()), probe_id.size(), process);
                 }
                 Eden::TakeGuestFault(); // Nothing from an earlier session belongs to this one.
                 Eden::Loading::Set(Eden::Loading::Step::starting);
