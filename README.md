@@ -33,25 +33,30 @@ hardware. This is early development, with substantial work remaining.
 
 ## Status
 
-**Latest published candidate: 0.63rc** (title PPSA99862, content version 00.005.063). **0.65rc** (00.005.065) is
-built and kept local until it has run on the console; 0.64rc was tested there. A candidate is
-published after the console test it needs.
+**Latest published candidate: 0.66rc** (title PPSA99862, content version 00.005.066). **0.67rc** (00.005.067) is
+built and kept local until it has run on the console. A candidate is published after the console test it needs.
 
-What the console runs show, from the 0.58rc to 0.63rc history (details in [BUILD-NOTES.md](BUILD-NOTES.md)):
+What the console runs show, from the 0.58rc to 0.66rc history (details in [BUILD-NOTES.md](BUILD-NOTES.md)):
 
 - **Stability is improving, not solved.** 0.60rc and 0.61rc ended on direct-memory exhaustion (a JIT block, then a
   10 MiB buffer). 0.62rc ran 101 minutes and 0.63rc 66 minutes in play without a crash report, with the pool
   full by design (11.5-11.9 GiB of 12.4 GiB held) and a shrinking largest free block (56 MiB at the start, 12-21 MiB
   later). That is a long session, not proof that exhaustion is gone.
 - **Refused direct-memory requests are mostly first attempts.** The CPU heap and the Vulkan driver ask for a large
-  block in one piece and fall back to pieces or chunks when refused. 0.63rc counted them; attributing them per
-  caller, so a run can show which request, if any, is a real loss, is the next step.
+  block in one piece and fall back to pieces or chunks when refused. 0.63rc counted them and 0.64rc attributed them
+  per caller (38 in 18 minutes against 1,287 in 66 minutes, and none in a fresh process with a warm shader cache).
+- **The slowdown is not memory.** Gameplay runs at about 12-16 FPS and then slows, from about 280 s (0.64rc: for
+  good, at 2-4 FPS) to about 5 min (0.65rc and 0.66rc: in waves of about 2 minutes of 2-6 FPS between recoveries),
+  with the GPU nearly idle. The 0.65rc wait profiler showed the RADV driver's queue thread idle for up to 2 s while
+  nothing was submitted; 0.67rc names the threads to find who the submitting side waits for.
+- **Audio.** Since 0.60rc the game's music (any voice that loops for ever) was silenced; 0.66rc plays it. The
+  sound is choppy although the emulator's render queue never ran dry; 0.67rc adds a probe for the output thread.
 - **Rendering is not fixed.** In Kokiri Forest the picture still has view-dependent white haze, hard fog
   boundaries, shard-like polygon slabs, black water, unlit black props and characters, and an over-exposed
   yellow interior in Link's house. Close-range views can be clean, which points at the fog/depth blend pass rather
   than at geometry or textures in general.
 - **Performance is far below target.** The 0.63rc run averaged about 6 FPS (median 4), with a fifth of the seconds
-  presenting no frame and 40 seconds at 30 FPS or more.
+  presenting no frame and 40 seconds at 30 FPS or more; the later runs sit at 12-16 FPS between stalls.
 
 Hardware stability, geometry and sustained 30 FPS remain unqualified.
 
@@ -59,7 +64,10 @@ Hardware stability, geometry and sustained 30 FPS remain unqualified.
 
 Verified development prereleases, each with the matching source ZIP, checksums, validation record and change notes.
 
-- **0.63rc** (latest published): [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.63rc/DirkuLator-0.63rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.63rc/DirkuLator-0.63rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.63rc).
+- **0.66rc** (latest published): [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.66rc/DirkuLator-0.66rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.66rc/DirkuLator-0.66rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.66rc).
+- **0.65rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.65rc/DirkuLator-0.65rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.65rc/DirkuLator-0.65rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.65rc).
+- **0.64rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.64rc/DirkuLator-0.64rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.64rc/DirkuLator-0.64rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.64rc).
+- **0.63rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.63rc/DirkuLator-0.63rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.63rc/DirkuLator-0.63rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.63rc).
 - **0.62rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.62rc/DirkuLator-0.62rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.62rc/DirkuLator-0.62rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.62rc).
 - **0.61rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.61rc/DirkuLator-0.61rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.61rc/DirkuLator-0.61rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.61rc).
 - **0.60rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.60rc/DirkuLator-0.60rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.60rc/DirkuLator-0.60rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.60rc).
@@ -67,8 +75,8 @@ Verified development prereleases, each with the matching source ZIP, checksums, 
 - **0.58rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.58rc/DirkuLator-0.58rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.58rc).
 - **0.57rc**: [PS5 ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-PS5.zip) · [Source ZIP](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/download/v0.57rc/DirkuLator-0.57rc-source.zip) · [Notes and checksums](https://github.com/FPS-FREPPA/DirkuLator-dev/releases/tag/v0.57rc).
 
-Earlier candidates (0.5.54rc and before) are on the [releases page](https://github.com/FPS-FREPPA/DirkuLator-dev/releases). Check a release's SHA256SUMS and
-VALIDATION.json before installing it; `hardware_tested` in VALIDATION.json says whether a console ran that build.
+Earlier candidates (0.5.54rc and before) are on the [releases page](https://github.com/FPS-FREPPA/DirkuLator-dev/releases). Check a release's SHA256SUMS before installing it. `VALIDATION.json` is written when a package is built, so its
+`hardware_tested` field does not reflect console runs made afterwards; the release notes say what each console run showed.
 
 ## Scope
 
