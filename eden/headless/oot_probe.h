@@ -88,14 +88,12 @@ private:
             const u64 code_region = static_cast<u64>(GetInteger(process->GetPageTable().GetCodeRegionStart()));
             const u64 found_main = static_cast<u64>(GetInteger(Core::FindMainModuleEntrypoint(process)));
             if (found_main == code_region || found_main == 0) {
-                if (tick % 10 == 1) std::fprintf(stderr, "EDEN_OOT_PROBE tick=%d main module not found yet
-", tick);
+                if (tick % 10 == 1) std::fprintf(stderr, "EDEN_OOT_PROBE tick=%d main module not found yet\n", tick);
                 continue;
             }
             if (found_main != main_base) {
                 main_base = found_main;
-                std::fprintf(stderr, "EDEN_OOT_PROBE on main=%llx
-", static_cast<unsigned long long>(main_base));
+                std::fprintf(stderr, "EDEN_OOT_PROBE on main=%llx\n", static_cast<unsigned long long>(main_base));
             }
             u64 mgr = 0;
             if (!Read64(m, main_base + kActorManager, mgr) || !Valid(m, mgr)) {
