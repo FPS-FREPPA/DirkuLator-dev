@@ -17,6 +17,7 @@
 #include "video_core/gpu_split.h"
 #endif
 #include "jit_list.h"
+#include "oot_probe.h"
 #include "boot_trace.h"
 #ifdef PS5_NATIVE
 #include "elevation/elevation.hpp"
@@ -2113,6 +2114,14 @@ int main(int argc, char** argv) {
                         code_end = info.m_address + info.m_size;
                     }
                     jit_list.Start(system.GetApplicationProcessProgramID(), build, code_start, code_end - code_start);
+                }
+                // 0.73rc: a read-only look at Ocarina of Time's actors (oot_probe.h); nothing for any other game.
+                Eden::OotProbe::Session oot_probe;
+                if (auto* process = system.ApplicationProcess()) {
+                    const auto& probe_id = system.GetApplicationProcessBuildID();
+                    oot_probe.Start(system.GetApplicationProcessProgramID(),
+                                    reinterpret_cast<const std::uint8_t*>(probe_id.data()), probe_id.size(),
+                                    GetInteger(Core::FindMainModuleEntrypoint(process)), &process->GetMemory());
                 }
                 Eden::TakeGuestFault(); // Nothing from an earlier session belongs to this one.
                 Eden::Loading::Set(Eden::Loading::Step::starting);

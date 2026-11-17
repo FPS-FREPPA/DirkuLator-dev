@@ -419,19 +419,24 @@ void Pad::Consume(std::size_t player, std::span<const ps5::pad::Data> samples) {
         // Only the Select (left) side owns shortcuts; the right side remains game input.
         constexpr ButtonMask menu_chord = kButtonTouchPad | kButtonL1;
         constexpr ButtonMask hud_chord = kButtonTouchPad | kButtonR1;
-        constexpr ButtonMask capture_chord = kButtonTouchPad | kButtonL2;
-        const bool capture = !slot.touch_right && (pressed & capture_chord) == capture_chord;
+        // 0.73rc: a finger resting on the left half of the touchpad is enough with L2 (no click needed).
+        const bool finger_left = slot.touch_width > 0 && sample.touch.count >= 1 &&
+            sample.touch.points[0].x < slot.touch_width / 2;
+        const bool capture = (finger_left && (pressed & kButtonL2) != 0) ||
+            (!slot.touch_right && (pressed & (kButtonTouchPad | kButtonL2)) == (kButtonTouchPad | kButtonL2));
         const bool menu = !slot.touch_right && (pressed & menu_chord) == menu_chord;
         const bool hud = !slot.touch_right && (pressed & hud_chord) == hud_chord;
         if (menu && (last_buttons & menu_chord) != menu_chord)
             return_to_menu = true;
         if (hud && (last_buttons & hud_chord) != hud_chord)
             hud_toggle = true;
-        if (capture && (last_buttons & capture_chord) != capture_chord)
+        if (capture && !slot.capture_held)
             capture_request = true;
-        if (menu || hud || capture)
-            sample.buttons &= ~(kButtonTouchPad | kButtonL1 | kButtonR1 | kButtonL2);
-        if (menu || hud || capture) {
+        slot.capture_held = capture;
+        if (capture) sample.buttons &= ~(kButtonL2 | (touch ? kButtonTouchPad : 0));
+        if (menu || hud)
+            sample.buttons &= ~(kButtonTouchPad | kButtonL1 | kButtonR1);
+        if (menu || hud || (capture && touch)) {
             slot.touch_chord = true;
             slot.select_held = false;
         }
