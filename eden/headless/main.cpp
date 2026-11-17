@@ -39,6 +39,7 @@
 #include <string_view>
 #include <stdexcept>
 #include <fstream>
+#include <vector>
 #include <nlohmann/json.hpp>
 #include "devices.h"
 #include "diagnostics.h"
@@ -275,6 +276,23 @@ static void UpdateGrips(Core::System& system, Eden::Pad& pad) {
 
 extern "C" void eden_load_step(const char* stage, const char* detail) {
     Eden::BootTrace::Line("load: %s %s", stage, detail);
+}
+
+// Touchpad (left) + L2 (0.71rc): ask for a GPU capture as capture-now.txt does, keeping only the newest few
+// capture folders so the console's disk is not filled (a capture is 100-270 MB).
+void RequestCaptureFromPad() {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const fs::path folder = std::string{Eden::kDataDir} + "/logs/capture";
+    std::vector<std::pair<fs::file_time_type, fs::path>> kept;
+    for (const auto& entry : fs::directory_iterator(folder, ec)) kept.emplace_back(entry.last_write_time(ec), entry.path());
+    std::sort(kept.begin(), kept.end());
+    constexpr std::size_t kKeep = 5;
+    for (std::size_t i = 0; kept.size() > kKeep && i < kept.size() - kKeep; ++i) fs::remove_all(kept[i].second, ec);
+    std::ofstream(std::string{Eden::kDataDir} + "/capture-now.txt") << "pad
+";
+    std::fprintf(stderr, "EDEN_FRAME_CAPTURE requested from the controller (Touchpad + L2)
+");
 }
 
 int main(int argc, char** argv) {
@@ -2238,8 +2256,10 @@ int main(int argc, char** argv) {
                         }
 #ifdef EDEN_PS5_OPENGL
                         if (pad->TakeHudToggle()) Eden::ToggleHud();
+                        if (pad->TakeCaptureRequest()) RequestCaptureFromPad();
 #else
                         (void)pad->TakeHudToggle();
+                        if (pad->TakeCaptureRequest()) RequestCaptureFromPad();
 #endif
                         bool room_lost = false;
 #ifdef PS5_NATIVE

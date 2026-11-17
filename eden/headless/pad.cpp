@@ -419,15 +419,19 @@ void Pad::Consume(std::size_t player, std::span<const ps5::pad::Data> samples) {
         // Only the Select (left) side owns shortcuts; the right side remains game input.
         constexpr ButtonMask menu_chord = kButtonTouchPad | kButtonL1;
         constexpr ButtonMask hud_chord = kButtonTouchPad | kButtonR1;
+        constexpr ButtonMask capture_chord = kButtonTouchPad | kButtonL2;
+        const bool capture = !slot.touch_right && (pressed & capture_chord) == capture_chord;
         const bool menu = !slot.touch_right && (pressed & menu_chord) == menu_chord;
         const bool hud = !slot.touch_right && (pressed & hud_chord) == hud_chord;
         if (menu && (last_buttons & menu_chord) != menu_chord)
             return_to_menu = true;
         if (hud && (last_buttons & hud_chord) != hud_chord)
             hud_toggle = true;
-        if (menu || hud)
-            sample.buttons &= ~(kButtonTouchPad | kButtonL1 | kButtonR1);
-        if (menu || hud) {
+        if (capture && (last_buttons & capture_chord) != capture_chord)
+            capture_request = true;
+        if (menu || hud || capture)
+            sample.buttons &= ~(kButtonTouchPad | kButtonL1 | kButtonR1 | kButtonL2);
+        if (menu || hud || capture) {
             slot.touch_chord = true;
             slot.select_held = false;
         }
