@@ -33,7 +33,8 @@ hardware. This is early development, with substantial work remaining.
 
 ## Status
 
-**Latest published candidate: 0.63rc** (title PPSA99862, content version 00.005.063). A candidate is
+**Latest published candidate: 0.63rc** (title PPSA99862, content version 00.005.063). **0.65rc** (00.005.065) is
+built and kept local until it has run on the console; 0.64rc was tested there. A candidate is
 published after the console test it needs.
 
 What the console runs show, from the 0.58rc to 0.63rc history (details in [BUILD-NOTES.md](BUILD-NOTES.md)):
@@ -53,6 +54,20 @@ What the console runs show, from the 0.58rc to 0.63rc history (details in [BUILD
   presenting no frame and 40 seconds at 30 FPS or more.
 
 Hardware stability, geometry and sustained 30 FPS remain unqualified.
+
+## Console firmware
+
+Test runs use a jailbroken PS5 on **firmware 13.00**, and the project stays there deliberately:
+
+- The public jailbreak (Relapse) covers firmware 7.00 to 13.60. Firmware 14.00 patched its kernel bug and no public
+  exploit exists for 14.00 to 14.22, so updating would end all native testing, and the PS5 has no official downgrade.
+- Keep automatic system updates off and do not install an update to try it; 13.60 and 14.x bring no benefit to
+  the emulator and carry reported problems (PKG launching, hypervisor bug, PSN lockout on older firmware).
+- Relapse is not persistent: rerun it after every full shutdown or reboot before loading a build.
+- Other tools tested only on a different firmware (for example the Spotify Connect receiver, tested on 13.20) may
+  refuse to run on 13.00; that is a guard in those tools, not a fault of the emulator.
+
+Runs, logs and evidence for each build are recorded with the firmware in use.
 
 ## Downloads
 
