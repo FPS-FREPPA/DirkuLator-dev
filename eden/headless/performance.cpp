@@ -493,6 +493,7 @@ extern "C" void eden_heap_census_report(void) __attribute__((weak));
 extern "C" std::int64_t eden_direct_events_held(void) __attribute__((weak));
 extern "C" std::uint64_t eden_direct_events_failed(std::uint64_t* repeated) __attribute__((weak));
 extern "C" void eden_direct_events_print(void) __attribute__((weak));
+extern "C" void eden_wait_profile_print(void) __attribute__((weak));
 // Fiber stacks: alive, size, deepest use (src/common/fiber.cpp, layer 99zzzzu, every 30 s).
 extern "C" void eden_fiber_stacks_report(void) __attribute__((weak));
 #ifdef PS5_NATIVE
@@ -819,6 +820,7 @@ void ReportSessionMemory(const char* phase, unsigned session) {
     }
     std::fflush(stdout);
     if (eden_direct_events_print) eden_direct_events_print();
+    if (eden_wait_profile_print) eden_wait_profile_print();  // 0.65rc: where threads block
 }
 
 void ReportGpuThread(unsigned frame) {

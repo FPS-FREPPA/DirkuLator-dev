@@ -33,8 +33,8 @@ hardware. This is early development, with substantial work remaining.
 
 ## Status
 
-**Latest published candidate: 0.63rc** (title PPSA99862, content version 00.005.063). **0.64rc** (00.005.064) is
-built and kept local; it is not published until it has been tested on a console.
+**Latest published candidate: 0.63rc** (title PPSA99862, content version 00.005.063). **0.65rc** (00.005.065) is
+built and kept local; 0.64rc was tested on the console and 0.65rc is not published until it has been tested too.
 
 What the console runs show, from the 0.58rc to 0.63rc history (details in [BUILD-NOTES.md](BUILD-NOTES.md)):
 
@@ -43,8 +43,9 @@ What the console runs show, from the 0.58rc to 0.63rc history (details in [BUILD
   full by design (11.5-11.9 GiB of 12.4 GiB held) and a shrinking largest free block (56 MiB at the start, 12-21 MiB
   later). That is a long session, not proof that exhaustion is gone.
 - **Refused direct-memory requests are mostly first attempts.** The CPU heap and the Vulkan driver ask for a large
-  block in one piece and fall back to pieces or chunks when refused. 0.63rc counted them; 0.64rc attributes them
-  per caller so the next run can show which request, if any, is a real loss.
+  block in one piece and fall back to pieces or chunks when refused. 0.63rc counted them and 0.64rc attributed them
+  per caller (a fresh process had none). The performance collapse after ~280 s of gameplay (12 to 2-4 FPS, GPU idle)
+  is not memory; 0.65rc adds a wait profiler to show where the draw thread blocks.
 - **Rendering is not fixed.** In Kokiri Forest the picture still has view-dependent white haze, hard fog
   boundaries, shard-like polygon slabs, black water, unlit black props and characters, and an over-exposed
   yellow interior in Link's house. Close-range views can be clean, which points at the fog/depth blend pass rather
